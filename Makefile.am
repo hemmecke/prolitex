@@ -1,6 +1,6 @@
 ###################################################################
 #
-# ProLite
+# ProLiteX
 # Copyright (C) 2010,  Ralf Hemmecke <ralf@hemmecke.de>
 #
 ###################################################################
@@ -20,7 +20,7 @@
 # This is the main Makefile of the unprose literate programming
 # project.
 ###################################################################
-bin_SCRIPTS = prolite
+bin_SCRIPTS = prolitex
 
-prolite0: prolite.tex
+prolitex0: prolitex.tex
 	@awk '/^\\begin{chunk}{$@}/ {code=1;next};/^\\end{chunk}/ {code=0; next };code' $<
