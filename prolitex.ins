@@ -1,0 +1,28 @@
+%%
+%% This file generates files required to use the prolitex package.
+%% At your command prompt write
+%%
+%%     tex prolitex.ins
+%%
+%% Copyright (C) 2010,  Ralf Hemmecke <ralf@hemmecke.de>
+%%
+% This work may be distributed and/or modified under the
+% conditions of the LaTeX Project Public License, either version 1.3
+% of this license or (at your option) any later version.
+% The latest version of this license is in
+%   http://www.latex-project.org/lppl.txt
+% and version 1.3 or later is part of all distributions of LaTeX
+% version 2005/12/01 or later.
+\input docstrip
+\usedir{tex/latex/prolitex}
+\keepsilent
+\askforoverwritefalse
+\generate{\file{prolitex.sty}{\from{prolitex.dtx}{}}}
+\Msg{*}
+\Msg{* You probably need to move `prolite.sty'}
+\Msg{* into a directory searched by TeX.}
+\Msg{*}
+\Msg{* And don't forget to refresh your filename database}
+\Msg{* if your TeX distribution uses such a database.}
+\Msg{*}
+\endbatchfile

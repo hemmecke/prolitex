@@ -1,0 +1,493 @@
+% \iffalse
+%%
+%% prolitex.dtx
+%% Copyright (C) 2010,  Ralf Hemmecke <ralf@hemmecke.de>
+%%
+% This work may be distributed and/or modified under the
+% conditions of the LaTeX Project Public License, either version 1.3
+% of this license or (at your option) any later version.
+% The latest version of this license is in
+%   http://www.latex-project.org/lppl.txt
+% and version 1.3 or later is part of all distributions of LaTeX
+% version 2005/12/01 or later.
+%
+% This work has the LPPL maintenance status `maintained'.
+% 
+% The Current Maintainer is Ralf Hemmecke <ralf@hemmecke.de>.
+%
+% This work consists of the files prolitex.dtx and prolitex.ins
+% and the derived file prolitex.sty.
+%%
+%<*driver>
+\documentclass[a4paper]{ltxdoc}
+\DisableCrossrefs
+\usepackage{url}
+\begin{document}
+\DocInput{prolitex.dtx}
+\end{document}
+%</driver>
+% \fi
+%
+%^^A Some definitions for the documentation of ProLiteX.
+% \newcommand{\packagename}[1]{{\normalfont\sffamily#1}}
+% \newcommand\ProLiteX{\textsf{ProLiteX}}
+% \newcommand\prolitex{\packagename{prolitex}}
+% \newcommand{\ie}{i.\,e.}
+%
+%^^A The title page
+% \title{The \ProLiteX{} package}
+% \date{2010/05/04}
+% \author{Ralf Hemmecke}
+% \maketitle
+% \begin{abstract}
+%   The \prolitex{} package supports literate programming by providing
+%   a new environment |chunk| in which the program code is to be
+%   written. It provides means similar to \packagename{noweb} to
+%   reference other code chunks.
+%
+%   Since \prolitex{} inherits all of its power from the
+%   \packagename{listings} package by Casten Heinz, all features of
+%   \packagename{listings} are available.
+% \end{abstract}
+%
+%^^A
+% \section{User's guide}
+% There are currently many programs that support literate programming,
+% so why here is another one? 
+%
+% For quite some time I was satisfied with the
+% \packagename{noweb}\footnote{\url{http://www.cs.tufts.edu/~nr/noweb/}}
+% system. However, a \packagename{noweb} file is not a .tex file
+% itself. The \packagename{noweb} sytem comes with a program |noweave|
+% in order to translate a \packagename{noweb} file into a .tex file.
+% Unfortunately, \packagename{noweb} is not installed on every
+% computer so that for example systems like
+% Axiom\footnote{\url{http://axiom-developer.org/}} and
+% FriCAS\footnote{\url{http://fricas.sourceforge.net/}} used to
+% include the \packagename{noweb} sources in their distribution and
+% build noweb on systems where it was not available. Unfortunately,
+% portability is always an issue.
+%
+% \ProLiteX{} gets rid of the weave part by providing means to write
+% literate programming files as pure \LaTeX{}. In addition, the style
+% file \packagename{noweb.sty} is no longer referenced, but instead
+% simply replaced by the few command contained in the file you are
+% currently reading.
+% The tangle part is done by a lightweight script (not depending on
+% \packagename{noweb}), but that will be described somewhere else.
+%
+% \ProLiteX{} came into existence shortly after I discovered the
+% package \packagename{newfangle}^^A
+% \footnote{\url{http://savannah.nongnu.org/projects/newfangle/}} by
+% Sam Liddicott. The package \packagename{newfangle} already gets rid
+% of the \packagename{weave} step. I actually never used it, but I
+% liked the idea that instead of putting the source code into ^^A
+% \begin{verbatim}
+% <<CHUNKNAME>>=
+% program source code
+% @\end{verbatim}
+%^^A
+% as is done in \packagename{noweb}, \packagename{newfangle} builds on
+% the very powerful \packagename{listings} package of Carsten Heinz
+% and provides a |\Chunk| command, a |\chunkref| and an escape
+% mechanism using |=<| and |>|, so that literary programming chunks
+% look like in the following example.
+%^^A
+% \begin{verbatim}
+% \Chunk{CHUNKNAME}
+% \begin{lstlisting}
+% write your code here
+% for a in 1..9 repeat {
+%   =<\chunkref{CHUNKNAME to be included}>
+%   =<\chunkref{other CHUNKNAME}>
+% }
+% \end{lstlisting}\end{verbatim}
+%^^A
+% That (except for the |=<| and |>| delimiters) is, of course a more
+% natural \LaTeX{} syntax to include code chunks.^^A
+% \footnote{Actually, \packagename{doc.dtx} together with
+%   \packagename{docstrip.dtx} is a \LaTeX-only solution, but it
+%   misses the concept of referencing and including other chunks
+%   during the \packagename{weave} (\ie, the \packagename{docstrip})
+%   step.}
+% The reference delimiters |=<| and |>| appear inside the code and
+% thus having them look like \LaTeX{} or any construct of the language
+% that appears in the listing is unnatural anyway.
+%
+% After reading the \packagename{newfangle} sources, I was not
+% completely satisfied with it. In particular, the way that
+% \packagename{newfangle} references other code chunks by
+%^^A
+% \begin{verbatim}
+% =<\chunkref{other-chunk}>\end{verbatim}
+%^^A
+% was not exactly the beauty and simplicity I wanted. Furthermore the
+% chunkname had to be given by means of the macro |\Chunk| before an
+% actual |lstlisting| environment. Unfortunately,
+% \packagename{newfangle} also employs \packagename{noweb.sty} to
+% typeset the documentation.^^A
+% \footnote{The package \packagename{newfangle} also has a quite
+% sophisticated tangle step that allows for parametrized chunks and
+% thus turning the tangle step into a parametrized macro expansion
+% step. \ProLiteX{} tangle does not do that.
+% If you want parametrized chunks, use \packagename{newfangle}.
+% Oh sorry, that was only a side remark. The |.dtx| file does not deal
+% with the tangle part.}
+%
+% Reading the sources of the \packagename{listings} package (v1.4) is
+% a pleasure. They are wonderful. The \prolitex{} package would not
+% exist without \packagename{listings}. The |chunk| environment that
+% it introduces is, in fact, nothing more than the |lstlisting|
+% environment itself, just under another name in order to be able to
+% extract code chunks by an appropriate script. Additionally, inside
+% the program code one can refer to other code chunks in a way
+% identical to \packagename{noweb}, namely using
+% \begin{verbatim}
+% <<other-chunk>>\end{verbatim}
+% inside a |chunk| environment. This feature builds on
+% \packagename{listings}' |escapeinside| facility. However, since the
+% only command that is needed is |\chunkref|, \prolitex{} provides a
+% |chunkref| key that basically works like |escapeinside| and allows
+% to choose the delimiters arbitrarily, but also includes a call to
+% the |\chunkref| command.
+%
+% \DescribeEnv{chunk}
+% In \prolitex{}, one simply puts the code chunks into
+%^^A
+% \begin{verbatim}
+% \begin{chunk}{CHUNKNAME}
+% write your code here
+% for a in 1..9 repeat {
+%   <<CHUNKNAME to be included>>
+%   <<other CHUNKNAME>>
+% }
+% \end{chunk}\end{verbatim}
+%^^A
+% where |CHUNKNAME| can be any text that can appear as an argument to a
+% \LaTeX{} command, \ie, something like
+%^^A
+% \begin{verbatim}
+% compute $\sum_{k=1}^n \frac{1}{k}$\end{verbatim}
+%^^A
+% is perfectly valid as |CHUNKNAME|.
+% Of course, chunk names longer than one line do not really make sense
+% and are, therefore, not supported.
+%
+% \DescribeEnv{chunkref}
+% The delimiters \texttt{<<} and \texttt{>>} can be adjusted by
+% providing new delimiters (here \verb'==|' and \verb'|==') as one
+% would do for the |escapeinside| key of the listings package.
+%^^A
+% \begin{verbatim}
+% \begin{chunk}[chunkref={==|}{|==}]{CHUNKNAME}\end{verbatim}
+%^^A
+% One can globally set the chunkref delimiters via
+%^^A
+% \begin{verbatim}
+% \lstset{chunkref={==|}{|==}\end{verbatim}
+%^^A
+% Being able to change the |chunkref| delimiters according to the
+% contents of the code chunk, there is no reason to introduce an
+% escape mechanism as is done in \packagename{noweb}.
+%
+% \DescribeMacro{\chunkref}
+% Inside ordinary text one can refer to a chunk by using
+%^^A
+% \begin{verbatim}
+% \chunkref{some-chunk-name}\end{verbatim}
+%^^A
+% Then the whole name together with its number will be printed.
+% There is currently no way to print the number of the chunk alone.
+
+% \DescribeEnv{captionstyle}
+% Each program chunk appears in the output by its name preceding
+% the actual code listing. It appears as a caption whose style can
+% be given using the |captionstyle| key.
+% For example, if the \packagename{color} package is loaded
+%^^A
+% \begin{verbatim}
+% \lstset{captionstyle=\color{red}}\end{verbatim}
+%^^A
+% prints the chunk name in red. The first number is a sequential
+% number that is increased by every new |chunk| environment.^^A
+% \footnote{Actually, by every |lstlisting| like environment, since
+% |chunk| and |lstlisting| use the same counter.}
+% The number after the chunk name (inside angle brackets) is the number
+% of the first chunk with that name.
+%
+% A quite useful thing is highlighting the code background by
+% ordinary features of the \packagename{listings} package.
+%^^A
+% \begin{verbatim}
+% \lstset{backgroundcolor=\color[rgb]{1,1,0.7}}\end{verbatim}
+%^^A
+%
+% Needless to mention that additionally loading \packagename{hyperref} via
+%^^A
+% \begin{verbatim}
+% \usepackage{hyperref}\end{verbatim}
+%^^A
+% produces hyperlinked cross references of the code chunks.
+%^^A
+%
+% \section{Implementation}
+% \subsection{Version, Date and \ldots}
+% The main functionality of the chunk environment heavily builds on
+% the listings package of Carsten Heinz.
+% prolitex.sty currently works with listings v1.3 and v1.4.
+%    \begin{macrocode}
+\RequirePackage{listings}[2004/09/07]
+%    \end{macrocode}
+%
+% Let's give \prolitex{} a date and a version and a name. And state
+% that we build on \LaTeX{}.
+%    \begin{macrocode}
+\NeedsTeXFormat{LaTeX2e}
+\def\filedate{2010/05/04}
+\def\fileversion{0.1}
+\AtEndOfPackage{\ProvidesPackage{prolitex}
+  [\filedate\space\fileversion\space(Ralf Hemmecke)]}
+%    \end{macrocode}
+%
+% \subsection{The chunk environment}
+% \begin{environment}{chunk}
+% Define the chunk environment in a similar way as the lstlistings
+% environment.
+%    \begin{macrocode}
+\lstnewenvironment{chunk}[2][]{%
+  \chunkref{#2}%
+  \def\lst@makecaption{\prolitex@makecaption}
+  \def\prolitex@value{#2}%
+  \@onelevel@sanitize\prolitex@value
+  \xdef\lst@intname{\prolitex@value}%
+  \lstset{numbers=left,firstnumber=auto,breaklines=false,
+    basicstyle=\ttfamily,caption={#2},#1}%
+  \csname\@lst @SetFirstNumber\endcsname
+}{\csname\@lst @SaveFirstNumber\endcsname}
+%    \end{macrocode}
+% \end{environment}
+%
+% \subsection{The chunkref key}
+%^^A |chunkref| is not really an environment, but we don't bother do
+%^^A define a lstkey environment as is done in the listings package.
+% \begin{environment}{chunkref}
+% We define a new key |chunkref| that basically behaves like
+% \packagename{listings}' own |escapeinside| with the only exception
+% that we collect the characters inside the delimiters and consider
+% them as an argument to the |\chunkref| command.
+%    \begin{macrocode}
+\lst@Key{chunkref}{}{\lstKV@TwoArg{#1}%
+    {\let\lst@DefEsc\@empty
+     \ifx\@empty##1@empty\else \ifx\@empty##2\@empty\else
+         \def\lst@DefEsc{\prolitex@EscapeRef{##1}{##2}}%
+     \fi\fi}}
+%    \end{macrocode}
+% Define the default chunk delimiters.
+%    \begin{macrocode}
+\lstset{chunkref={<<}{>>}}
+%    \end{macrocode}
+% \begin{macro}{\prolitex@EscapeRef}
+% This command is a replacement for |\lst@Escape| from the
+% \packagename{listings} package. However, we only have two instead
+% of four parameters. We also dropped the calls to
+% |\lst@escapebegin| and |\lst@escapeend| in order to avoid any
+% overlap between simultaneous |escapeinside| and |chunkref| in the
+% same code chunk (which is allowed but probably makes no sense). 
+%    \begin{macrocode}
+\gdef\prolitex@EscapeRef#1#2{% 
+%    \end{macrocode}
+% The macro |\prolitex@EscapeRef| finds the starting delimiter |#1|
+% and remember all characters up to |#2| and finally calls |\chunkref|
+% on the collected characters. We assume that chunk names fit on one
+% line and do not contain a |\par|.
+%
+% \begin{macro}{\prolitex@process}
+% By means of the local macro |\prolitex@process| the ending
+% delimiter is found. That is a very simplified version of its
+% equivalent part from |\lst@Escape|. Things will completely go
+% wrong if the ending delimiter is not found. The |escapeinside| of
+% the \packagename{listings} package is actually more relaxed with
+% non-existing ending delimiters. However, the goal for \prolitex{} is
+% to be used for literate programming and thus no ending delimiter
+% means an error for the tangle machinery.
+%    \begin{macrocode}
+  \gdef\prolitex@process##1#2{\gdef\prolitex@eaten{##1}%
+    \expandafter\chunkref\expandafter{\prolitex@eaten}%
+    \lst@LeaveAllModes\lst@ReenterModes
+    \lst@newlines\z@ \lst@whitespacefalse}%
+%    \end{macrocode}
+% \end{macro}
+% The following code looks for the starting delimiter and then starts
+% |\prolitex@process| from above, it is basically a copy of the
+% corresponding code from |\lst@Escape| only that we start the above
+% |\prolitex@process| in order to find the ending delimiter.
+%    \begin{macrocode}
+  \lst@CArgX #1\relax\lst@CDefX
+    {}%
+    {\lst@ifdropinput\else
+      \lst@TrackNewLines\lst@OutputLostSpace \lst@XPrintToken
+      \lst@InterruptModes
+      \lst@EnterMode{\lst@TeXmode}{\lst@modetrue}%
+      \expandafter\prolitex@process
+      \fi}%
+    {}}
+%    \end{macrocode}
+% \end{macro}
+% \end{environment}
+%^^A
+% \subsection{Reference to a Code Chunk}
+% \begin{macro}{\chunkref}
+% This is a user definable command that determines the appearance of a
+% code chunk reference.
+%    \begin{macrocode}
+\newcommand{\chunkref}[2][1]{\textrm{%
+  \ensuremath{\langle}#2 \prolitex@ref{#2:#1}\ensuremath{\rangle}}}
+%    \end{macrocode}
+% \end{macro}
+% \begin{macro}{\prolitex@ref}
+% The macro is essentially calling |\ref| with the argument turned
+% into characters of category code 12 (other).
+%    \begin{macrocode}
+\def\prolitex@ref#1{\prolitex@other\ref{#1}}
+%    \end{macrocode}
+% \end{macro}
+
+% \subsection{Defining a Code Chunk Label}
+% There are two situations where we have to deal with labels, namely
+% when they are defined by the |\label| command and when they are read
+% in from the |.aux| file.
+%^^A
+% \subsubsection{Definition in the .tex file}
+% \begin{macro}{\prolitex@label}
+% The macro is essentially calling |\label| with the argument turned
+% into characters of category code 12 (other).
+%
+% The original |\label| command should work well if all chunk names
+% were different. However, they are usually not. A |chunk| environment
+% continues a previous environment with the same name.
+% In order to cope with that, we introduce a label generator, \ie, the
+% first chunk with name |NAME| gets the label |NAME:1|. The following
+% chunks with the same |NAME| get |NAME:2|, |NAME:3|, etc. as their
+% respective label names.
+%    \begin{macrocode}
+\def\prolitex@label#1{\prolitex@other\prolitex@other@label{#1}}
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\prolitex@other@label}
+% The following macro introduces one command |sc@NAME| for each
+% chunk name |NAME|. Its value is the number that described above.
+% We use two \TeX{} tricks here.
+% \begin{enumerate}
+% \item |\csname sc@X\endcsname| expands to |\relax| if |\sc@X| is an
+%   undefined control sequence. So we don't need |\@ifundefined|.
+% \item When \TeX{} reads a number, it continues until it encounters a
+%   non-digit.
+% \end{enumerate}
+% Since |\csname sc@#1\endcsname| will be either undefined or expand
+% to a number, by the first line, we initialize the counter
+% |\@tempcnta| to either 0 or the last already assigned number.
+%    \begin{macrocode}
+\def\prolitex@other@label#1{%
+  \@tempcnta 0\csname sc@#1\endcsname\relax
+  \advance\@tempcnta\@ne
+  \expandafter\xdef\csname sc@#1\endcsname{\the\@tempcnta}
+  \def\@tempa{#1:}%
+  \expandafter\expandafter\expandafter\label
+  \expandafter\expandafter\expandafter{%
+    \expandafter\@tempa\the\@tempcnta}}
+%    \end{macrocode}
+% \end{macro}
+%^^A
+% \subsubsection{Reading the label from the .aux file}
+% \begin{macro}{\newlabel}
+% We just make sure that nothing bad can happen with our labels. We
+% basically turn the first argument of |\newlabel| into characters of
+% category code 12 (other).
+%    \begin{macrocode}
+\let\prolitex@newlabel@save\newlabel
+\def\newlabel#1{\prolitex@other\prolitex@newlabel@save{#1}}
+%    \end{macrocode}
+% \end{macro}
+
+% \begin{macro}{\prolitex@other}
+% We need a way to treat an argument in such a way that it can be
+% used for the definition of a command, \ie, |\csname|. The
+% |\@onelevel@sanitize| command defined in \LaTeX's
+% \packagename{ltdefns.dtx} does exactly that. It takes a control
+% sequence and turns its contents into letters of category code 12
+% (other).
+% \begin{verbatim}
+% \prolitex@other\somecommand{ARG}\end{verbatim}
+% will first turn all characters in ARG into characters with
+% category code 12 (other) and then invoke |\somecommand| on this
+% translated ARG. 
+%    \begin{macrocode}
+\def\prolitex@other#1#2{\def\prolitex@value{#2}%
+  \@onelevel@sanitize\prolitex@value
+  \expandafter#1\expandafter{\prolitex@value}}
+%    \end{macrocode}
+% \end{macro}
+
+% \subsection{Captions}
+%^^A |captionsstyle| is not really an environment, but we don't bother do
+%^^A define a lstkey environment as is done in the listings package.
+% \begin{environment}{captionstyle}
+% We define a new key |chunkref| that basically behaves like
+% \packagename{listings}' own |escapeinside| with the only exception
+% that we collect the characters inside the delimiters and consider
+% them as an argument to the |\chunkref| command.
+%    \begin{macrocode}
+\lst@Key{captionstyle}{}{\def\prolitex@captionstyle{#1}}
+%    \end{macrocode}
+% \end{environment}
+% Define the style for the chunk caption.
+%    \begin{macrocode}
+\lstset{captionstyle=\textrm}
+%    \end{macrocode}
+%
+% \begin{macro}{\chunkcaptionadjust}
+% We want the chunk caption left adjust, so we don't have the |\hfil|
+% in front of |#1|.
+%    \begin{macrocode}
+\def\prolitex@captionadjust#1{#1\hfil}
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\prolitex@makecaption}
+% Adjust the appearance of the caption (left adjusted) and ignore the
+% first and second parameters since we know they must be
+% |\fnum@lstlisting| and |\lst@caption|.
+%
+% In order to keep the |lstlisting| environment and the |chunk|
+% environment separate, we do not redefine |\fnum@lstlisting| but
+% rather use |\thelstlisting| directly.
+%
+% We assume that chunk names are less than one line in size.
+%
+% We use the command |\prolitex@makecaption| locally as
+% |\@makecaption| in the definition of the |chunk| environment.
+%
+% Our own definition of the |\@makecaption| command is necessary,
+% because our first attempt that worked for \packagename{listings} 1.3
+% broke with version 1.4, since in \packagename{listings}' 1.3 definition
+% of |\lst@MakeCaption| appears the line
+% \begin{verbatim}
+% \lst@makecaption\fnum@lstlisting\lst@caption\end{verbatim}
+% whereas in version 1.4 an |\ignorespaces| has been added.
+% \begin{verbatim}
+% \lst@makecaption\fnum@lstlisting{\ignorespaces \lst@caption}\end{verbatim}
+% That interferes badly with our need to expand |\lst@caption| once
+% and use the characters for printing and for determining the chunk
+% number. Thus, here is a new one.
+%    \begin{macrocode}
+\long\def\prolitex@makecaption#1#2{%
+  \vskip\abovecaptionskip
+  \expandafter\prolitex@label\expandafter{\lst@caption}
+  \sbox\@tempboxa{\prolitex@captionstyle{\thelstlisting
+      \expandafter\chunkref\expandafter{\lst@caption}}}%
+  \global \@minipagefalse
+  \hb@xt@\hsize{\prolitex@captionadjust{\box\@tempboxa}}%
+  \vskip\belowcaptionskip}
+%    \end{macrocode}
+% \end{macro}
