@@ -202,7 +202,9 @@
 % \DescribeEnv{captionstyle}
 % Each program chunk appears in the output by its name preceding
 % the actual code listing. It appears as a caption whose style can
-% be given using the |captionstyle| key.
+% be given using the |captionstyle| key. The argument should be a
+% \LaTeX-command that takes one argument (the caption preceded by a
+% the chunk number) and does something with it.
 % For example, if the \packagename{color} package is loaded
 %^^A
 % \begin{verbatim}
@@ -248,6 +250,27 @@
 \AtEndOfPackage{\ProvidesPackage{prolitex}
   [\filedate\space\fileversion\space(Ralf Hemmecke)]}
 %    \end{macrocode}
+%
+% \begin{macro}{\prolitex@other}
+% The command |\prolitex@other| just helps to make shorter definitions
+% later. We need a way to treat an argument in such a way that it can be
+% used for the definition of a command, \ie, inside the |\csname|,
+% |\endcsname| pair. The |\@onelevel@sanitize| command defined in
+% \LaTeX's \packagename{ltdefns.dtx} does exactly that. It takes a
+% control sequence and turns its contents into letters of category
+% code 12 (other).
+% \begin{verbatim}
+% \prolitex@other\somecommand{ARG}\end{verbatim}
+% will first turn all characters in ARG into characters with
+% category code 12 (other) and then invoke |\somecommand| on this
+% translated ARG. 
+%    \begin{macrocode}
+\def\prolitex@other#1#2{\def\prolitex@value{#2}%
+  \@onelevel@sanitize\prolitex@value
+  \expandafter#1\expandafter{\prolitex@value}}
+%    \end{macrocode}
+% \end{macro}
+
 %
 % \subsection{The chunk environment}
 % \begin{environment}{chunk}
@@ -401,47 +424,49 @@
 %^^A
 % \subsubsection{Reading the label from the .aux file}
 % \begin{macro}{\newlabel}
-% We just make sure that nothing bad can happen with our labels. We
-% basically turn the first argument of |\newlabel| into characters of
-% category code 12 (other).
+% We just make sure that nothing bad can happen with our labels.
+% Since we allow a broader character set for our labels, we must make
+% sure that the category codes are set to 12 (other) when they are
+% read by |\newlabel|.
+% There are two places where the |.aux| file will be read.
+% \begin{enumerate}
+% \item Before |\begin{document}| a possibly already existing |.aux|
+%   file is read.
+% \item At the time when |\end{documnent}| is executed the command
+%   |\@newl@bel| is redefined by \LaTeX{} to mean
+%   |\@testdef|\footnote{|@\@testdef| basically checks whether all
+%   labels have proper definitions.} and the newly generated |.aux|
+%   file is read.
+% \end{enumerate}
+% Redefining |\newlabel| directly in \packagename{prolitex.sty} only
+% works for the first inclusion of the |.aux| file. For the second
+% inclusion we would have to redefine |\@testdef|. Since the latter
+% is too deep inside the heart of \LaTeX{}, we decided to write the
+% redefinition of |\newlabel| into the |.aux| file itself.
 %    \begin{macrocode}
-\let\prolitex@newlabel@save\newlabel
-\def\newlabel#1{\prolitex@other\prolitex@newlabel@save{#1}}
+\AtBeginDocument{%
+  \protected@write\@auxout{}{%
+    \string\let\string\prolitex@newlabel@save\string\newlabel^^J%
+    \string\def\string\newlabel\string#1{%
+      \string\def\string\prolitex@value{\string#1}%
+      \string\@onelevel@sanitize\string\prolitex@value^^J%
+      \string\expandafter\string\prolitex@newlabel@save\string\expandafter{%
+        \string\prolitex@value}}}}
 %    \end{macrocode}
 % \end{macro}
-
-% \begin{macro}{\prolitex@other}
-% We need a way to treat an argument in such a way that it can be
-% used for the definition of a command, \ie, |\csname|. The
-% |\@onelevel@sanitize| command defined in \LaTeX's
-% \packagename{ltdefns.dtx} does exactly that. It takes a control
-% sequence and turns its contents into letters of category code 12
-% (other).
-% \begin{verbatim}
-% \prolitex@other\somecommand{ARG}\end{verbatim}
-% will first turn all characters in ARG into characters with
-% category code 12 (other) and then invoke |\somecommand| on this
-% translated ARG. 
-%    \begin{macrocode}
-\def\prolitex@other#1#2{\def\prolitex@value{#2}%
-  \@onelevel@sanitize\prolitex@value
-  \expandafter#1\expandafter{\prolitex@value}}
-%    \end{macrocode}
-% \end{macro}
-
+%^^A
+%
 % \subsection{Captions}
 %^^A |captionsstyle| is not really an environment, but we don't bother do
 %^^A define a lstkey environment as is done in the listings package.
 % \begin{environment}{captionstyle}
-% We define a new key |chunkref| that basically behaves like
-% \packagename{listings}' own |escapeinside| with the only exception
-% that we collect the characters inside the delimiters and consider
-% them as an argument to the |\chunkref| command.
+% We define a new key |captionstyle| that allows to determine the
+% appearance of the caption of a chunk environment.
 %    \begin{macrocode}
 \lst@Key{captionstyle}{}{\def\prolitex@captionstyle{#1}}
 %    \end{macrocode}
 % \end{environment}
-% Define the style for the chunk caption.
+% Define the defaultstyle for the chunk caption.
 %    \begin{macrocode}
 \lstset{captionstyle=\textrm}
 %    \end{macrocode}
