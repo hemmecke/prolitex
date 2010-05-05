@@ -12,7 +12,7 @@
 % version 2005/12/01 or later.
 %
 % This work has the LPPL maintenance status `maintained'.
-% 
+%
 % The Current Maintainer is Ralf Hemmecke <ralf@hemmecke.de>.
 %
 % This work consists of the files prolitex.dtx and prolitex.ins
@@ -36,7 +36,7 @@
 %
 %^^A The title page
 % \title{The \ProLiteX{} package}
-% \date{2010/05/04}
+% \date{2010/05/06}
 % \author{Ralf Hemmecke}
 % \maketitle
 % \begin{abstract}
@@ -53,7 +53,7 @@
 %^^A
 % \section{User's guide}
 % There are currently many programs that support literate programming,
-% so why here is another one? 
+% so why here is another one?
 %
 % For quite some time I was satisfied with the
 % \packagename{noweb}\footnote{\url{http://www.cs.tufts.edu/~nr/noweb/}}
@@ -245,7 +245,7 @@
 % that we build on \LaTeX{}.
 %    \begin{macrocode}
 \NeedsTeXFormat{LaTeX2e}
-\def\filedate{2010/05/04}
+\def\filedate{2010/05/06}
 \def\fileversion{0.1}
 \AtEndOfPackage{\ProvidesPackage{prolitex}
   [\filedate\space\fileversion\space(Ralf Hemmecke)]}
@@ -263,7 +263,7 @@
 % \prolitex@other\somecommand{ARG}\end{verbatim}
 % will first turn all characters in ARG into characters with
 % category code 12 (other) and then invoke |\somecommand| on this
-% translated ARG. 
+% translated ARG.
 %    \begin{macrocode}
 \def\prolitex@other#1#2{\def\prolitex@value{#2}%
   \@onelevel@sanitize\prolitex@value
@@ -278,7 +278,6 @@
 % environment.
 %    \begin{macrocode}
 \lstnewenvironment{chunk}[2][]{%
-  \chunkref{#2}%
   \def\lst@makecaption{\prolitex@makecaption}
   \def\prolitex@value{#2}%
   \@onelevel@sanitize\prolitex@value
@@ -315,9 +314,9 @@
 % of four parameters. We also dropped the calls to
 % |\lst@escapebegin| and |\lst@escapeend| in order to avoid any
 % overlap between simultaneous |escapeinside| and |chunkref| in the
-% same code chunk (which is allowed but probably makes no sense). 
+% same code chunk (which is allowed but probably makes no sense).
 %    \begin{macrocode}
-\gdef\prolitex@EscapeRef#1#2{% 
+\gdef\prolitex@EscapeRef#1#2{%
 %    \end{macrocode}
 % The macro |\prolitex@EscapeRef| finds the starting delimiter |#1|
 % and remember all characters up to |#2| and finally calls |\chunkref|
