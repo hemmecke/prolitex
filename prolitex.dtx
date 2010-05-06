@@ -44,7 +44,7 @@
 %
 %^^A The title page
 % \title{The \ProLiteX{} package}
-% \date{2010/05/06}
+% \date{2010/05/07}
 % \author{Ralf Hemmecke}
 % \maketitle
 % \begin{abstract}
@@ -253,7 +253,7 @@
 % that we build on \LaTeX{}.
 %    \begin{macrocode}
 \NeedsTeXFormat{LaTeX2e}
-\def\filedate{2010/05/06}
+\def\filedate{2010/05/07}
 \def\fileversion{0.1}
 \AtEndOfPackage{\ProvidesPackage{prolitex}
   [\filedate\space\fileversion\space(Ralf Hemmecke)]}
@@ -278,7 +278,6 @@
   \expandafter#1\expandafter{\prolitex@value}}
 %    \end{macrocode}
 % \end{macro}
-
 %
 % \subsection{The chunk environment}
 % \begin{environment}{chunk}
@@ -287,8 +286,7 @@
 %    \begin{macrocode}
 \lstnewenvironment{chunk}[2][]{%
   \def\lst@makecaption{\prolitex@makecaption}
-  \def\prolitex@value{#2}%
-  \@onelevel@sanitize\prolitex@value
+  \def\prolitex@value{#2}\@onelevel@sanitize\prolitex@value
   \xdef\lst@intname{\prolitex@value}%
   \lstset{numbers=left,firstnumber=auto,breaklines=false,
     basicstyle=\ttfamily,caption={#2},#1}%
@@ -406,7 +404,7 @@
 %
 % \begin{macro}{\prolitex@other@label}
 % The following macro introduces one command |sc@NAME| for each
-% chunk name |NAME|. Its value is the number that described above.
+% chunk name |NAME|. Its value is the number that is described above.
 % We use two \TeX{} tricks here.
 % \begin{enumerate}
 % \item |\csname sc@X\endcsname| expands to |\relax| if |\sc@X| is an
@@ -517,9 +515,27 @@
   \vskip\abovecaptionskip
   \expandafter\prolitex@label\expandafter{\lst@caption}
   \sbox\@tempboxa{\prolitex@captionstyle{\thelstlisting
-      \expandafter\chunkref\expandafter{\lst@caption}}}%
+      \expandafter\prolitex@chunkrefnav\expandafter{\lst@caption}}}%
   \global \@minipagefalse
   \hb@xt@\hsize{\prolitex@captionadjust{\box\@tempboxa}}%
   \vskip\belowcaptionskip}
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\prolitex@chunkrefnav}
+% After execution of |\prolitex@label|, the counter |\@tempcnta| has
+% an appropriate value. We only have to test whether the previous and
+% next labels have been assigned and output the appropriate navigation
+% code.
+%    \begin{macrocode}
+\def\prolitex@chunkrefnav#1{%
+  \chunkref{#1}
+  \def\prolitex@value{#1}\@onelevel@sanitize\prolitex@value
+  \advance\@tempcnta by -1
+  \@ifundefined{r@\prolitex@value:\the\@tempcnta}{}{%
+    \ensuremath{\triangleleft}\ref{\prolitex@value:\the\@tempcnta} }
+  \advance\@tempcnta by 2
+  \@ifundefined{r@\prolitex@value:\the\@tempcnta}{}{%
+    \ref{\prolitex@value:\the\@tempcnta}\ensuremath{\triangleright}}}
 %    \end{macrocode}
 % \end{macro}
