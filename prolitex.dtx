@@ -19,12 +19,20 @@
 % and the derived file prolitex.sty.
 %%
 %<*driver>
-\documentclass[a4paper]{ltxdoc}
-\DisableCrossrefs
-\usepackage{url}
-\begin{document}
-\DocInput{prolitex.dtx}
-\end{document}
+% The following construction with defining |\ProLiteXDocumentation|
+% and calling it only if |\documentclass| is not equal to
+% |\@twoclasseserror|, e.i., if |\documentclass| has not yet been
+% executed, serves the sole purpose of making this .dtx file a proper
+% .sty file.
+% \url{http://groups.google.com/group/comp.text.tex/browse_thread/thread/507f50d03a2f8ed2?hl=en#}
+\def\ProliteXDocumentation{%
+  \documentclass[a4paper]{ltxdoc}
+  \DisableCrossrefs
+  \usepackage{url}
+  \begin{document}
+  \DocInput{prolitex.dtx}
+  \end{document}}
+\ifx\documentclass\@twoclasseserror\else\expandafter\ProliteXDocumentation\fi
 %</driver>
 % \fi
 %
