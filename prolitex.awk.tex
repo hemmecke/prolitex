@@ -1,0 +1,427 @@
+\documentclass[a4paper]{article}
+\usepackage{prolitex}
+\usepackage[x11names]{xcolor}
+\lstset{backgroundcolor=\color{SlateBlue3!10!gray!10!white},
+  captionstyle=\bfseries\color{SlateBlue4},
+  language=Awk}
+\usepackage{hyperref}
+
+\newcommand{\packagename}[1]{{\normalfont\sffamily#1}}
+\newcommand\ProLiteX{\textsf{ProLiteX}}
+\newcommand\prolitex{\packagename{prolitex}}
+\newcommand{\ie}{i.\,e.}
+\lstnewenvironment{myverbatim}%
+  {\lstset{basicstyle=\scriptsize\ttfamily,gobble=2}}%
+  {}
+% We must use basicstyle=\scriptsize in order to get about 80
+% charactes per line in the code chunk.
+\lstset{basicstyle=\scriptsize}
+
+% Similar to the definition of the description environment in
+% article.cls.
+\newenvironment{ttdescription}
+  {\list{}{\labelwidth0pt \itemindent-\leftmargin
+      \def\makelabel##1{\hspace\labelsep
+        \normalfont\ttfamily ##1:}}}
+  {\endlist}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{document}
+\title{\ProLiteX}
+\date{17-May-2010}
+\author{Ralf Hemmecke}
+\maketitle
+\begin{abstract}
+  The \ProLiteX{} project consists of a collection of tools to
+  supports literate programming. In contrast to most other tools
+  \ProLiteX{} has no weave command to extract a \texttt{.tex} document
+  from the literate sources. Instead, \ProLiteX{} defines an ordinary
+  \LaTeX{} \texttt{chunk} environment into which program code is to be
+  written. Due to that, literate sources are pure \LaTeX{} files.
+
+  As the tangle part, \ie, extracting the source code from the
+  literate sources, \ProLiteX{} provides an \packagename{awk} script.
+\end{abstract}
+
+\section{Introduction}
+
+\section{Implementation}
+
+Since this file is a literate program (\ie, it contains documentation
+and source code) of \ProLiteX's tangle command, there is a little
+bootstrapping problem. \ProLiteX's tangle program cannot yet be
+assumed to exist. We, therefore, do not use code junk references here
+and write the program in a linear fashion so that just extracting the
+lines inbetween \verb|\begin{chunk}| and \verb|\end{chunk}| will give
+the respective source code.
+
+This extraction can easily be done by piping this file through the
+following simple \packagename{awk} command.
+\begin{myverbatim}
+  awk '/^\\begin{chunk}/{c=1;next};/^\\end{chunk}/{c=0;next};c'
+\end{myverbatim}
+
+Since this \packagename{awk} file should be a script, we start with an
+appropriate first line. Note that we assume that the executable
+\texttt{awk} lives under \texttt{/usr/bin}. That might not everywhere
+be the case. Maybe our \texttt{configure} script should deal with
+this issue.
+\begin{chunk}{*}
+#!/usr/bin/awk -f
+\end{chunk}
+
+Let's have an error function that aborts the program.
+\begin{chunk}{*}
+function error(msg) {
+  print "==========================================="
+  print "Error in line " NR " of " FILENAME "."
+  print msg
+  exit
+}
+\end{chunk}
+
+
+
+\subsection{Overview}
+
+The implementation is done for two cases (a) where the chunkref
+delimiters do not change and (b) where they can change due to a
+\verb'\lstset' command or optional parameters in square brackets
+immediately after \verb%\begin{cunk}%.
+
+The flow of the \packagename{awk} program is simple and done in three
+phases.
+
+\begin{enumerate}
+\item First, we collect all chunk data in an array \texttt{data}. Each
+  chunk environment from the source file becomes a separate entry. No
+  concatenation of chunks is done. And no chunk references are
+  resolved.
+
+\item The first phase ends when the \texttt{END} clause of the
+  \packagename{awk} program will be executed, \ie, when the whole
+  source file has been read.
+%
+  The second phase expands the chunks and determines which chunks are
+  root chunks.
+
+\item Finally, in the third phase, the desired data is written to stdout
+  or to the respective files.
+\end{enumerate}
+\subsection{Phase 1}
+\subsubsection{Globabl Variables in Phase 1}
+
+We basically store all the information about the chunks in an array
+\texttt{data}. Additionally, each unique chunkname is collected as an
+index in the array \texttt{chunk}.
+
+We list here the all the global variables.
+\begin{ttdescription}
+\item[bdelimglobal \textrm{and} edelimglobal] These variables are used
+  to store the global settings for the chunkref delimiters.
+  % Because in the following chunk we write <<, we must redefine
+  % the default chunkref delimiter. Since this file does actually use
+  % chunkref delimiters, it does not matter to what delimiters we
+  % redefine the default. It just should not appear inside any of the
+  % following chunk environments.
+  \lstset{chunkref={@<@}{@>@}}
+\begin{chunk}{*}
+{
+  bdelimglobal = "<<"
+  edelimglobal = ">>"
+}
+\end{chunk}
+If no other delimiters are given, these will be used. 
+By a command of the form
+\begin{myverbatim}
+  \lstset{chunkref={<[}{]>}}
+\end{myverbatim}
+the global chunkref delimiters can be changed for the following chunk
+enviroments to \texttt{<[} and \texttt{]>}.
+
+
+\item[data] Input lines between
+\begin{myverbatim}
+  \begin{chunk}{chunkname}
+\end{myverbatim}
+and 
+\begin{myverbatim}
+  \end{chunk}
+\end{myverbatim}
+are collected into the array \texttt{data}.%
+\footnote{In general, there can be an optional argument enclosed in
+  square brackets between \texttt{\{chunk\}} and
+  \texttt{\{chunkname\}}.}
+%
+Note that both of the environment delimiters are supposed to start at
+the beginning of the line.
+
+A detailed description follows below.
+
+\item[inchunk] This variable is true if we are inside a chunk, \ie, if
+  we must collect the lines.
+
+\item[chunkname] The name of the current chunk.
+
+\item[part] The part number of the current chunk. The smallest number
+  is 1.
+
+\item[lines] Not really necessary, but is used to collect all chunk
+  lines before they are stored into
+  \texttt{data[chunkname,part,"lines"]}.
+
+\item[chunkref] Not really necessary, but is used to remember whether
+  there is a chunk reference inside the current chunk. At the end of
+  the current chunk part, its value is stored into
+  \texttt{data[chunkname,part,"chunkref?"]}.
+%
+  A non-zero value indicates that this chunk contains an unexpanded
+  chunk reference.
+\end{ttdescription}
+
+
+\subsubsection{The \texttt{data} Array}
+Let us describe the contents of the array \texttt{data} in more
+detail.
+
+Since there might be different chunks with the same name and we plan
+for changes of the chunkref delimiters, we define for each
+\texttt{chunkname} the following array indices, where
+\texttt{chunkname} and \texttt{part} have the meaning from above.
+
+\begin{ttdescription}
+\item[chunkname,"parts"] The number of chunks with the same name.
+
+\item[chunkname,part,"lineno"] The source line number of the first
+  chunk line. This will be used to generate \texttt{\#line}
+  directives.
+
+\item[chunkname,part,"lines"] The content of a part of a chunk. All
+  lines are concatenated and stored in this entry. The trailing
+  newline character of the last line is removed.
+
+\item[chunkname,part,"bdelim"] The starting chunkref delimiter
+  sequence that is valid for this chunk.
+
+\item[chunkname,part,"edelim"] The ending chunkref delimiter sequence
+  that is valid for this chunk.
+
+\item[chunkname,part,"chunkref?"] This is true (\ie, greater than 0)
+  if in this part of the chunk there are references to other chunks.
+\end{ttdescription}
+
+\subsubsection{Code for Phase 1}
+
+We start with a first simple implementation where we do not consider
+any options that change the default setting for the chunkref
+delimiters, which are \texttt{<<} and \texttt{>>}.
+
+Let's first treat the simple case to start a chunk, \ie, the chunk has
+no optional parameter. We don't allow any character appearing after
+the closing brace that ends the chunkname.
+\begin{chunk}{*}
+/^\\begin{chunk}{.+}$/ {#$
+  inchunk = 1
+  chunkname = substr($0,15,length($0)-15)
+  part = ++data[chunkname,"parts"]
+  if (part == 1) {
+    chunk[chunkname] = 0 # assume that this is a root chunk
+  }
+  data[chunkname,part,"bdelim"] = bdelimglobal
+  data[chunkname,part,"edelim"] = edelimglobal
+  data[chunkname,part,"lineno"] = NR+1
+  lines = ""
+  chunkref = 0 #no chunkref found so far
+  next
+}
+\end{chunk}
+
+Eventually, we switch off the chunk treatment. It only makes sense if
+we are inside a chunk. Otherwise we abort.
+\begin{chunk}{*}
+/^\\end{chunk}/ {
+  if (inchunk == 0) {
+    error("Have found \\end{chunk} without \\begin{chunk}.")
+  }
+  data[chunkname,part,"lines"] = substr(lines,2) # remove initial \n
+  data[chunkname,part,"chunkref?"] = chunkref
+  data[chunkname,"chunkref?"] += chunkref
+  inchunk=0
+  next
+}
+\end{chunk}
+
+It is also easy to actually treat the chunk, \ie, when we are inside a
+chunk and read the chunk lines. Note that this chunk must come after
+the part that treats the end of a code chunk.
+\begin{chunk}{*}
+inchunk {
+  chunkref += index($0, data[chunkname,part,"bdelim"]) #$
+  lines = lines "\n" $0 #$
+  next
+}
+\end{chunk}
+
+
+\subsection{Phase 2}
+\subsubsection{Globabl Variables in Phase 2}
+
+In addition to the indices of the \texttt{data} array given above, the
+following indices are used.
+%
+Phase 2 will only read the values from the indices in Phase 1, but
+never change them.
+\begin{ttdescription}
+\item[chunkname,"lines"] The whole chunk, \ie, all parts concatenated
+  and properly expanded. This is only defined if there is an already
+  computed expanded chunk.
+\end{ttdescription}
+
+Since \packagename{awk} does not allow to return objects, we use
+global variables. The following global variables are set by the
+function \texttt{haschunkref} as a side effect and are not modified by
+any other function.
+\begin{ttdescription}
+\item[before] to the string part before matching \texttt{bdelim},
+\item[chunkrefname] to the name that has been found,
+\item[after] to the string part after the closing \texttt{edelim},
+\item[afterindex] to the index where the string \texttt{after} begins
+  in the originally given string.
+\end{ttdescription}
+
+
+\subsubsection{Code for Phase 2}
+
+Let us define some auxiliary functions.
+
+The following function \texttt{haschunkref} returns the index where a
+chunk reference has been found. It is the first index of the string
+\texttt{bdelim}. If no chunk reference can be found this function
+returns 0.
+
+As a side effect, this variable sets the global variables
+\texttt{before}, \texttt{chunkrefname}, \texttt{after},
+\texttt{afterindex}. See their description above.
+
+\begin{chunk}{*}
+function haschunkref(s, bdelim, edelim,
+  # local variables
+  b, c, e) {
+  #
+  b = index(s, bdelim)
+  if (b == 0) { return 0 }
+  before = substr(s, 1, b-1)
+  c = b + length(bdelim)
+  e = index(substr(s, c), edelim)
+  if (e == 0) {
+    error("Closing chunkref delimiter not found.")
+  }
+  chunkrefname = substr(s, c, e-1)
+  afterindex = c+e+length(edelim)-1
+  after = substr(s, afterindex)
+  return b
+}
+\end{chunk}
+
+The function \texttt{indentchunk} indents every line in the parameter
+\texttt{lines} by $n$ spaces. We simply replace each newline by a
+newline followed by $n$ spaces.
+\begin{chunk}{*}
+function indentchunk(n, lines,
+  # local variables
+  f, indent) {
+  #
+  f = "%" n "s"
+  indent = sprintf("%" n "s", "")
+  gsub(/\n/, "\n" indent, lines)
+  return lines
+}
+\end{chunk}
+
+Including chunk in one line \texttt{aline} means to determine the
+index and name of the chunk reference and replace it by the
+corresponding (properly indented) code chunk. The chunk delimiters
+have to be given when the function is invoked.
+\begin{chunk}{*}
+function includechunks(aline, bdelim, edelim,
+  # local variables
+  i, n, s) {
+  #
+  while (i = haschunkref(aline, bdelim, edelim)) {
+    s = s before indentchunk(n+i-1,data[chunkrefname,"lines"])
+    n += afterindex-1
+    aline = after
+  }
+  return s aline
+}
+\end{chunk}
+
+When we enter Phase 2, no chunk has yet been expanded. Since one chunk
+may comprise several parts that have to be expanded separately and
+then concatenated, we have two functions that are mutually call each
+other. While \texttt{expandchunkrefsN} recursively expands the chunk
+references of a chunk part with name \texttt{chunkname} and number
+\texttt{part}, the function \texttt{expandchunkrefs} expands all chunk
+parts, concatenates them and stores these lines into the variable
+\texttt{data[chunkname,"lines"]}.
+
+\begin{quote}
+  \textbf{Warning:} There is no code that detects recursion in the
+    chunks. The chunk structure is supposed to form a tree (or rather
+    a forest, since there might be several roots).
+\end{quote}
+
+Due to passing arrays by reference in \packagename{awk}, we basically
+cannot use arrays in recursive invocations of functions. Therefore, we
+parse the given chunk lines twice. In the first round, we do not yet
+compute the resulting lines, but rather only recursively expand the
+chunks that are referenced from the current chunk. In the second round
+we can simply include the (already) expanded lines from the referenced
+chunks.
+\begin{chunk}{*}
+function expandchunkrefsN(chunkname,part,
+  # local variables
+  chunkdata, bdelim, edelim, n, s, i, line) {
+  #
+  chunkdata = data[chunkname, part, "lines"]
+  # return early if the chunk does not reference other chunks
+  if (data[chunkname, part, "chunkref?"] == 0) { return chunkdata }
+  # First round.
+  bdelim = data[chunkname, part, "bdelim"]
+  edelim = data[chunkname, part, "edelim"]
+  while (haschunkref(chunkdata, bdelim, edelim)) {
+    chunkdata = after
+    expandchunkrefs(chunkrefname)
+  }
+  # Second round. Now every subchunk is properly expanded. We include them.
+  n = split(data[chunkname,part,"lines"],line,"\n")
+  if (n == 0) {return ""} # empty chunk
+  s = includechunks(line[1], bdelim, edelim)
+  for(i=2; i<=n; i++) {s = s "\n" includechunks(line[i], bdelim, edelim)}
+  return s
+}
+\end{chunk}
+
+And now we expand the various chunk parts and store these lines
+concatenated into \texttt{data[chunkname,"lines"]}.
+\begin{chunk}{*}
+function expandchunkrefs(chunkname,
+  # local variables
+  parts, s, k) {
+  # return early if the chunk has already been expanded
+  if ((chunkname,"lines") in chunk) { return data[chunkname,"lines"] }
+  parts = data[chunkname,"parts"]
+  s = expandchunkrefsN(chunkname,1)
+  for (k=2; k<=parts; k++) {s = s "\n" expandchunkrefsN(chunkname,k)}
+  data[chunkname,"lines"] = s
+  return s
+}
+\end{chunk}
+
+The following piece of code just triggers the expansion and output of
+all the chunks.
+\begin{chunk}{*}
+END {
+  for (i in chunk) { print expandchunkrefs(i) }
+}
+\end{chunk}
+\end{document}

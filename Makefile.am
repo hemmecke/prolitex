@@ -22,5 +22,12 @@
 ###################################################################
 bin_SCRIPTS = prolitex
 
-prolitex0: prolitex.tex
-	@awk '/^\\begin{chunk}{$@}/ {code=1;next};/^\\end{chunk}/ {code=0; next };code' $<
+prolitex: prolitex.awk
+	cp $< $@
+	chmod +x $@
+
+# prolitex.awk.tex is simple. The whole program is just linearly
+# distributed over the chunk environment, so we just extract the
+# contents of these environments. (That's the simplest tangle.)
+prolitex.awk: prolitex.awk.tex
+	awk '/^\\begin{chunk}/{c=1;next};/^\\end{chunk}/{c=0;next};c' $< > $@
