@@ -1,4 +1,8 @@
-\documentclass[a4paper]{article}
+\documentclass[a4paper]{article} % 2>/dev/null || <<'%%%%% BUILD-SCRIPT'
+
+% The above line together with everything in this file that follows
+% the end of the HERE-DOC will be executed via "sh prolitex.awk.tex".
+
 \usepackage{prolitex}
 \usepackage[x11names]{xcolor}
 \lstset{backgroundcolor=\color{SlateBlue3!10!gray!10!white},
@@ -425,3 +429,9 @@ END {
 }
 \end{chunk}
 \end{document}
+% The following command can be used to generate the .awk file from
+% this literate document. Just say
+%   sh prolitex.awk.tex
+% on the command line.
+%%%%% BUILD-SCRIPT
+awk '/^\\begin{chunk}/{c=1;next};/^\\end{chunk}/{c=0;next};c' <$0 >`echo $0|sed 's/\.tex$//'`
