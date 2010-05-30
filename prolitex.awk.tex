@@ -8,6 +8,7 @@
 \lstset{backgroundcolor=\color{SlateBlue3!10!gray!10!white},
   captionstyle=\bfseries\color{SlateBlue4},
   language=Awk}
+%\usepackage{url}
 \usepackage{hyperref}
 
 \newcommand{\packagename}[1]{{\normalfont\sffamily#1}}
@@ -31,7 +32,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \begin{document}
 \title{\ProLiteX}
-\date{17-May-2010}
+\date{31-May-2010}
 \author{Ralf Hemmecke}
 \maketitle
 \begin{abstract}
@@ -79,7 +80,7 @@ function error(msg) {
   print "==========================================="
   print "Error in line " NR " of " FILENAME "."
   print msg
-  exit
+  exit 1
 }
 \end{chunk}
 
@@ -91,6 +92,12 @@ The implementation is done for two cases (a) where the chunkref
 delimiters do not change and (b) where they can change due to a
 \verb'\lstset' command or optional parameters in square brackets
 immediately after \verb%\begin{cunk}%.
+
+Since parsing the input to find out when the \texttt{chunkref}
+delimiters change in case (b) is quite a bit more complicated than the
+default case (a), we decided to first describe case (a) in
+Sections~\ref{sec:phase1} and \ref{sec:phase2}. Parsing for new
+chunkref delimiters is treated in Section~\ref{sec:parsing}.
 
 The flow of the \packagename{awk} program is simple and done in three
 phases.
@@ -111,7 +118,7 @@ phases.
 \item Finally, in the third phase, the desired data is written to stdout
   or to the respective files.
 \end{enumerate}
-\subsection{Phase 1}
+\subsection{Phase 1}\label{sec:phase1}
 \subsubsection{Globabl Variables in Phase 1}
 
 We basically store all the information about the chunks in an array
@@ -129,7 +136,7 @@ We list here the all the global variables.
   % following chunk environments.
   \lstset{chunkref={@<@}{@>@}}
 \begin{chunk}{*}
-{
+BEGIN {
   bdelimglobal = "<<"
   edelimglobal = ">>"
 }
@@ -141,7 +148,18 @@ By a command of the form
 \end{myverbatim}
 the global chunkref delimiters can be changed for the following chunk
 enviroments to \texttt{<[} and \texttt{]>}.
-
+\begin{chunk}{*}
+/^\\lstset{/ {
+  lineidx = 8 # start parsing after "\lstset{"
+  if (parseoptions() != "}") {error("Expected closing brace")}#$
+  if (setchunkref()) {bdelimglobal = bdelim; edelimglobal = edelim}
+  next
+}
+\end{chunk}
+In the above chunk, since we stop processing via the \texttt{next}
+statement, we ignore everything that comes after the closing brace on
+the same line. The functions \texttt{parseoptions} and
+\texttt{setchunkref} are defined in Section~\ref{sec:parsing}.
 
 \item[data] Input lines between
 \begin{myverbatim}
@@ -181,6 +199,10 @@ A detailed description follows below.
   A non-zero value indicates that this chunk contains an unexpanded
   chunk reference.
 \end{ttdescription}
+There are more global variables, but since they are all connected to
+the parsing of the \verb'\lstset' argument or the optional argument of
+\verb'\'\verb'begin{chunk}', we rather describe them in
+Section~\ref{sec:parsing}.
 
 
 \subsubsection{The \texttt{data} Array}
@@ -224,17 +246,52 @@ no optional parameter. We don't allow any character appearing after
 the closing brace that ends the chunkname.
 \begin{chunk}{*}
 /^\\begin{chunk}{.+}$/ {#$
-  inchunk = 1
   chunkname = substr($0,15,length($0)-15)
+  enterchunk(chunkname, bdelimglobal, edelimglobal)
+  next
+}
+\end{chunk}
+
+Entering a chunk simply initializes certain variables. We have put
+this code into a separate function because it can be reused for
+entering a chunk that has an optional parameter.
+\begin{chunk}{*}
+function enterchunk(chunkname, bdelim, edelim) {
+  inchunk = 1
   part = ++data[chunkname,"parts"]
-  if (part == 1) {
-    chunk[chunkname] = 0 # assume that this is a root chunk
-  }
-  data[chunkname,part,"bdelim"] = bdelimglobal
-  data[chunkname,part,"edelim"] = edelimglobal
+  if (part == 1) {chunk[chunkname] = 0} # assume that this is a root chunk
+  data[chunkname,part,"bdelim"] = bdelim
+  data[chunkname,part,"edelim"] = edelim
   data[chunkname,part,"lineno"] = NR+1
   lines = ""
   chunkref = 0 #no chunkref found so far
+}
+\end{chunk}
+
+If a chunk environment is immediately followed by an open bracket, we
+first parse the optional parameter and then assume that the rest of
+the line is the chunkname enclosed in braces. We do not allow any
+character after the closing brace, not even white space.
+The optional parameter can span several lines, though.
+
+The function \texttt{parseoptions} leaves the variable
+\texttt{lineidx} pointing to the next character in the current input
+line. It should be the start of the \verb"{CHUNKNAME}".
+
+The function \texttt{setchunkref} then takes the \texttt{options}
+array and determines the values of the begin and ending delimiter.
+
+Both \texttt{parseoptions} and \texttt{setchunkref} are described in Section~\ref{sec:parsing}
+\begin{chunk}{*}
+/^\\begin{chunk}\[/ {
+  lineidx = 14 # start parsing after "\begin{chunk}["
+  if (parseoptions() != "]") {error("Expected closing bracket")}
+  chunkname = substr($0,lineidx+1,length($0)-lineidx-1)
+  if (substr($0, lineidx, 1) != "{" || substr($0, length($0), 1) != "}") {#$
+    error("Chunkname (" chunkname ") not enclosed in braces.")
+  }
+  setchunkref()
+  enterchunk(chunkname, bdelim, edelim)
   next
 }
 \end{chunk}
@@ -256,7 +313,9 @@ we are inside a chunk. Otherwise we abort.
 
 It is also easy to actually treat the chunk, \ie, when we are inside a
 chunk and read the chunk lines. Note that this chunk must come after
-the part that treats the end of a code chunk.
+the part that treats the end of a code chunk. If it came before that
+chunk then \verb'\'\verb'end{chunk}' would be considered as part of
+the chunk.
 \begin{chunk}{*}
 inchunk {
   chunkref += index($0, data[chunkname,part,"bdelim"]) #$
@@ -266,7 +325,7 @@ inchunk {
 \end{chunk}
 
 
-\subsection{Phase 2}
+\subsection{Phase 2}\label{sec:phase2}
 \subsubsection{Globabl Variables in Phase 2}
 
 In addition to the indices of the \texttt{data} array given above, the
@@ -302,15 +361,12 @@ chunk reference has been found. It is the first index of the string
 \texttt{bdelim}. If no chunk reference can be found this function
 returns 0.
 
-As a side effect, this variable sets the global variables
+As a side effect, this function sets the global variables
 \texttt{before}, \texttt{chunkrefname}, \texttt{after},
 \texttt{afterindex}. See their description above.
 
 \begin{chunk}{*}
-function haschunkref(s, bdelim, edelim,
-  # local variables
-  b, c, e) {
-  #
+function haschunkref(s, bdelim, edelim,   b, c, e) {
   b = index(s, bdelim)
   if (b == 0) { return 0 }
   before = substr(s, 1, b-1)
@@ -330,11 +386,7 @@ The function \texttt{indentchunk} indents every line in the parameter
 \texttt{lines} by $n$ spaces. We simply replace each newline by a
 newline followed by $n$ spaces.
 \begin{chunk}{*}
-function indentchunk(n, lines,
-  # local variables
-  f, indent) {
-  #
-  f = "%" n "s"
+function indentchunk(n, lines,   indent) {
   indent = sprintf("%" n "s", "")
   gsub(/\n/, "\n" indent, lines)
   return lines
@@ -346,14 +398,15 @@ index and name of the chunk reference and replace it by the
 corresponding (properly indented) code chunk. The chunk delimiters
 have to be given when the function is invoked.
 \begin{chunk}{*}
-function includechunks(aline, bdelim, edelim,
-  # local variables
-  i, n, s) {
-  #
+function includechunks(aline, bdelim, edelim,   i, n, s) {
   while (i = haschunkref(aline, bdelim, edelim)) {
-    s = s before indentchunk(n+i-1,data[chunkrefname,"lines"])
-    n += afterindex-1
-    aline = after
+    if (chunkrefname in chunk) {
+      s = s before indentchunk(n+i-1,data[chunkrefname,"lines"])
+      n += afterindex-1
+      aline = after
+    } else {
+      error("chunk name '" chunkrefname "' not existing")
+    }
   }
   return s aline
 }
@@ -361,7 +414,7 @@ function includechunks(aline, bdelim, edelim,
 
 When we enter Phase 2, no chunk has yet been expanded. Since one chunk
 may comprise several parts that have to be expanded separately and
-then concatenated, we have two functions that are mutually call each
+then concatenated, we have two functions that mutually call each
 other. While \texttt{expandchunkrefsN} recursively expands the chunk
 references of a chunk part with name \texttt{chunkname} and number
 \texttt{part}, the function \texttt{expandchunkrefs} expands all chunk
@@ -408,9 +461,7 @@ function expandchunkrefsN(chunkname,part,
 And now we expand the various chunk parts and store these lines
 concatenated into \texttt{data[chunkname,"lines"]}.
 \begin{chunk}{*}
-function expandchunkrefs(chunkname,
-  # local variables
-  parts, s, k) {
+function expandchunkrefs(chunkname,   parts, s, k) {
   # return early if the chunk has already been expanded
   if ((chunkname,"lines") in chunk) { return data[chunkname,"lines"] }
   parts = data[chunkname,"parts"]
@@ -421,6 +472,315 @@ function expandchunkrefs(chunkname,
 }
 \end{chunk}
 
+\subsection{The Options Parsing}\label{sec:parsing}
+In general the \packagename{listings} package allows to control the
+\texttt{lstlisting} environment. This is inherited by \ProLiteX{},
+\ie, one can pass options to a \texttt{chunk} environment in two ways.
+\begin{enumerate}
+\item Using the \verb'\lstset' command. These options take global
+  effect. Example:
+\begin{myverbatim}
+  \lstset{chunkref={<'}{'>},gobble=2}
+\end{myverbatim}
+\item Writing options into the optional part of the \texttt{chunk}
+  environment. They only affect the chunk locally. Example:
+\begin{myverbatim}
+  \begin{chunk}[chunkref={<'}{'>},gobble=2]{CHUNKNAME}
+    code goes here
+  \end{chunk}
+\end{myverbatim}
+\end{enumerate}
+
+
+\subsubsection{The Options Regular Expression}
+Options form a comma separated list of \texttt{key=value} pairs where
+the \texttt{key} is an ordinary word just consisting of letters and
+\texttt{value} is an expression that may contain braces only in a
+properly nested and balanced fashion.
+
+In a \verb'\lstset' argument occuring brackets at top level
+must be balanced. Furthermore, special \TeX{} characters like
+\begin{myverbatim}
+  \ { } $ & # ^ _ % ~
+\end{myverbatim}
+%$
+must be escaped by a backslash.
+
+In order to parse the options we assume the following grammar (in
+EBNF):
+\begin{lstlisting}[keywords={comma, equal, word, cs, obrace, cbrace,
+    obracket, cbracket}, label=grammar]
+options   ::= keyval { comma keyval }
+keyval    ::= [ key [ equal value ] ]
+key       ::= word
+value     ::= { balanced }
+balanced  ::= balancedx | obracket balancedx cbracket
+balancedx ::= { word | cs | obrace  balancedz cbrace }
+balancedz ::= { comma | equal | obracket | cbracket | balancedx }
+\end{lstlisting}
+The bold faced symbols are returned by the lexer. They are defined as
+follows.
+\begin{lstlisting}[string={[d]"},stringstyle=\ttfamily]
+comma    ::= ","
+equal    ::= "="
+obrace   ::= "{"
+cbrace   ::= "}"
+obracket ::= "["
+cbracket ::= "]"
+cs       ::= "\" letter { letter }
+word     ::= { diglet | special | other }
+letter   ::= "a"|...|"z" | "A"|...|"Z"
+diglet   ::= "0"|...|"9" | letter
+special  ::= "\\" | "\{" | "\}" | "\$" | "\&" | "\#" | "\^" | "\_"
+           | "\%" | "\~"
+other    ::= "@" | "!" | "|" | "'" | "(" | ")" | "*" | "+" | "-" | "."
+           | "/" | ":" | ";" | "=" | "<" | ">" | "?" | """
+\end{lstlisting}
+This grammar is a very simplified form of what is actually allowed.
+For example, it completely ignores white space in keyword values.
+Since we are only interested in the value of \texttt{chunkref} and in
+finding the end of the key/value pairs, ignoring white space is not an
+issue.
+
+The grammar also accepts keywords that consist of non-letters. This is
+wrong, but our tangle script is not responsible for checking the
+correctness of the \LaTeX{} text and the only keyword that is of
+interest to us, is \texttt{chunkref}.
+
+The lexer considers tabulators, spaces and newlines as white space.
+White space also separates tokens. The lexer removes \LaTeX{} comments
+from the input.
+
+Special characters can be returned as word constituents by the lexer.
+They will appear with the backslash removed.
+
+The basic ideas for the following parser can be found in
+\cite[pp.~9--20]{Wirth:2005}. Our parser is not very sophisticated. In
+addition to recognizing the key/value structure, we collect all the
+key/value pairs in a global array \texttt{options}.
+
+\subsubsection{Global Variables for Lexer and Parser}
+
+Since \packagename{awk} does not have constants, we give here two
+variables that are actually used as constants. According to the
+grammar letters can be used as part of a control sequence. Non-word
+characters are used to recognize the end of a word.
+\begin{chunk}{*}
+BEGIN {
+  letter      = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+  nonwordchar = " %,={}[]\\"
+}
+\end{chunk}
+
+The other global variables are given as follows.
+\begin{ttdescription}
+\item[ch] The next (look-ahead) character that is set by the function
+  \texttt{nextCharacter}.
+
+\item[sym] Holds the next (look-ahead) token that is set by the
+  function \texttt{getsym}.
+
+\item[symvalue] For word and control sequence tokens this variable
+  holds the corresponding word or control sequence.
+
+\item[lineidx] The character \texttt{ch} is given by the reading from
+  the current input line at index \texttt{lineidx}.
+
+\item[kvalue] Holds the value for the current keyword. Its value is
+  accumulated during parsing and returned by the function
+  \texttt{gvalue}.
+
+\item[options] Holds all the keyword/value pairs that are recognized
+  during parsing an \verb'\'\verb'lstset' or optional
+  \verb'\'\verb'begin{chunk}' argument.
+
+\end{ttdescription}
+
+
+\subsubsection{The Lexer}
+The lexer is a function that returns the next token. Tokens are given
+by the bold face symbols above.
+
+Since the above grammar is so simple, we do not introduce particular
+tokens but rather use the characters directly in the meaning of
+tokens. For the tokens \texttt{cs} and \texttt{word} we reserve the
+characters \texttt{"c"} and \texttt{"w"}, respectively.
+
+Let us first implement a function \texttt{nextCharacter} which returns
+the next character from the input stream and stores it in the global
+variable \texttt{ch}. That function will already transform tabulators and
+newlines into a space.
+
+\begin{chunk}{*}
+function nextCharacter() {
+  lineidx += 1
+  if (lineidx <= length($0)) {
+    ch = substr($0, lineidx, 1)#$
+  } else {
+    if (getline <= 0) {error("Unexpected end of file.")}
+    lineidx = 0
+    ch = " " # new line
+  }
+  if (ch == "\t") { ch = " " }
+}
+\end{chunk}
+
+The function \texttt{getsym} decides upon the look-ahead character
+\texttt{ch} which token is to be returned. If the token consists of
+several characters, \ie, if it is a word or control sequence token, it
+will read the respective amount of characters from the input stream.
+The variable \texttt{ch} will then contain the next character after
+the word or control sequence token.
+
+Since we have a simple grammar, except for the tokens \verb|"w"|
+(word) and \verb|"c"| (control sequence), each of the bold face
+tokens in the grammar is represented by its respective character.
+\begin{chunk}{*}
+function getsym() {
+  symvalue = ""
+  # The following while loop skips white space and LaTeX comments
+  while (ch == " " || ch == "%") {
+     if (ch == "%") {while (ch != "\n") {nextCharacter()}}
+     nextCharacter()
+  }
+  # Now test for all the tokens.
+  if (index(",={}[]", ch)) {sym = ch; nextCharacter()}
+  else if (ch == "\\") {
+    nextCharacter()
+    symvalue = ch
+    if (index(letter, ch)) {
+      sym = "c"
+      nextCharacter()
+      while (index(letter,ch)) {symvalue = symvalue ch; nextCharacter()}
+    } else {
+      sym = "w"
+      nextCharacter()
+      while (index(nonwordchar, ch) == 0) {
+        symvalue = symvalue ch; nextCharacter()
+      }
+    }
+  } else {
+    sym = "w"
+    symvalue = ch
+    nextCharacter()
+    while (index(nonwordchar, ch) == 0) {
+      symvalue = symvalue ch; nextCharacter()
+    }
+  }
+}
+\end{chunk}
+
+\subsubsection{The Parser}
+
+The parser is a simple translation of the grammar from
+page~\pageref{grammar} in the spirit of \cite[pp.~9--20]{Wirth:2005}.
+
+The function \texttt{parseoptions} is the top-level parse function. It
+assumes that the variable \texttt{lineidx} gives the index into the
+current line after which parsing should start. The function returns
+the token (which in our case should only be \verb|"]"| or \verb|"}"|)
+of the text following the optional key/value pairs.
+\begin{chunk}{*}
+function parseoptions() {
+  nextCharacter() # ch = look-ahead character
+  getsym() # sym = look-ahead token
+  goptions() # start parsing
+  return sym
+}
+\end{chunk}
+
+The following functions (all starting with the letter g for grammar)
+form a direct translation of the grammar as given on
+page~\pageref{grammar} into parsing functions. 
+\begin{chunk}{*}
+function goptions() {
+  gkeyval()
+  while (sym == ",") {getsym(); gkeyval()}
+}
+\end{chunk}
+
+Except for recognizing the grammar, the functions keep track of the
+value of a key/value pair. This value is accumulated into the variable
+\texttt{kvalue} and eventually stored into the \texttt{options} array
+at the position given by the name of the key.
+\begin{chunk}{*}
+function gkeyval( keyname) { 
+  if (sym == "w") {
+    keyname = symvalue
+    getsym()
+    kvalue = ""
+    if (sym == "=") {getsym(); if (index("wc{[", sym)) {gvalue()}}
+    options[keyname] = kvalue
+  }
+}
+\end{chunk}
+\begin{chunk}{*}
+function gvalue() {while (index("wc{[", sym)) {gbalanced()}}
+\end{chunk}
+\begin{chunk}{*}
+function gbalanced() {
+  if (sym == "[") {
+    kvalue = kvalue sym; getsym(); gbalancedx()
+    if (sym == "]") {kvalue = kvalue sym; getsym()}
+    else {error("Expected ']'")}
+  } else gbalancedx()
+}
+\end{chunk}
+\begin{chunk}{*}
+function gbalancedx() {
+  while (index("wc{", sym)) {
+    if      (sym == "w") {kvalue = kvalue symvalue; getsym()}
+    else if (sym == "c") {kvalue = kvalue "\\" symvalue; getsym()}
+    else { # sym == "{"
+      kvalue = kvalue sym; getsym(); gbalancedz()
+      if (sym == "}") {kvalue = kvalue sym; getsym()}
+      else {error("Expected '}'")}
+    }
+  }
+}
+\end{chunk}
+\begin{chunk}{*}
+function gbalancedz() {
+  while (index(",=[]wc{", sym)) {
+    if (index(",=[]", sym)) {kvalue = kvalue sym; getsym()}
+    else gbalancedx()
+  }
+}
+\end{chunk}
+
+
+\subsubsection{Setting chunkref Delimiters}
+
+The function \texttt{setchunkref} assumes that the global variable
+\texttt{options} is an array that may or may not have an entry at the
+index \texttt{chunkref}. If it has, then upon return the variables
+\texttt{bdelim} and \texttt{edelim} will represent the respective
+chunkref delimiters and 1 is returned. Otherwise \texttt{bdelim} and
+\texttt{edelim} will be set to the global values \texttt{bdelimglobal}
+and \texttt{edelimglobal} and 0 is returned.
+
+We assume that \verb'options["chunkref"]' has a format like
+\verb"{bdelim}{edelim}", so we split and remove the braces.
+\begin{chunk}{*}
+function setchunkref( idx, val) {
+  if ("chunkref" in options) {
+    val = options["chunkref"]
+    idx = index(val, "}{")
+    if (idx == 0) {
+      error("chunkref value not givein in the form {bdelim}{edelim}")
+    }
+    bdelim = substr(val, 2, idx-2)
+    edelim = substr(val, idx+2, length(val)-idx-2)
+    return 1
+  } else {
+    bdelim = bdelimglobal
+    edelim = edelimglobal
+    retun 0
+  }
+}
+\end{chunk}
+
+\subsection{Phase 3}\label{sec:phase3}
 The following piece of code just triggers the expansion and output of
 all the chunks.
 \begin{chunk}{*}
@@ -428,6 +788,14 @@ END {
   for (i in chunk) { print expandchunkrefs(i) }
 }
 \end{chunk}
+
+
+
+
+
+\bibliographystyle{alpha}
+\bibliography{prolitex}
+
 \end{document}
 % The following command can be used to generate the .awk file from
 % this literate document. Just say
