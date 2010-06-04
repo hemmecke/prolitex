@@ -401,6 +401,7 @@ have to be given when the function is invoked.
 function includechunks(aline, bdelim, edelim,   i, n, s) {
   while (i = haschunkref(aline, bdelim, edelim)) {
     if (chunkrefname in chunk) {
+      chunk[chunkrefname] = 1 # chunkrefname is used, i.e. no root chunk
       s = s before indentchunk(n+i-1,data[chunkrefname,"lines"])
       n += afterindex-1
       aline = after
@@ -691,7 +692,7 @@ function parseoptions() {
 
 The following functions (all starting with the letter g for grammar)
 form a direct translation of the grammar as given on
-page~\pageref{grammar} into parsing functions. 
+page~\pageref{grammar} into parsing functions.
 \begin{chunk}{*}
 function goptions() {
   gkeyval()
@@ -704,7 +705,7 @@ value of a key/value pair. This value is accumulated into the variable
 \texttt{kvalue} and eventually stored into the \texttt{options} array
 at the position given by the name of the key.
 \begin{chunk}{*}
-function gkeyval( keyname) { 
+function gkeyval( keyname) {
   if (sym == "w") {
     keyname = symvalue
     getsym()
