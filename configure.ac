@@ -1,7 +1,7 @@
 AC_PREREQ(2.61)
 AC_INIT(
-  [ProLite],
-  [0.0.1],
+  [ProLiteX],
+  [0.1],
   [ralf@hemmecke.de])
 
 # Sanity check
