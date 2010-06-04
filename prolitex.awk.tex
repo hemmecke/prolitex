@@ -32,7 +32,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \begin{document}
 \title{\ProLiteX}
-\date{31-May-2010}
+\date{05-Jun-2010}
 \author{Ralf Hemmecke}
 \maketitle
 \begin{abstract}
@@ -48,6 +48,58 @@
 \end{abstract}
 
 \section{Introduction}
+In the following we describe the \ProLiteX{} implementation of a
+\texttt{tangle} program. This \packagename{awk} programm is called via
+\begin{myverbatim}
+  awk -f prolitex.awk file.tex
+\end{myverbatim}
+where \texttt{file.tex} is the file containing chunk definitions.
+In fact, if \packagename{awk} exists as \texttt{/usr/bin/awk} on the
+system, then \texttt{prolitex.awk} can be made executable and used as a
+script in the form
+\begin{myverbatim}
+  prolitex.awk file.tex
+\end{myverbatim}
+The script accepts several command line options.
+\begin{ttdescription}
+\item[-R\texttt{name}] Expand and output the chunk \texttt{name} to
+  stdout. Several \texttt{-R} options can be given with the meaning
+  that the corresponding expanded chunks are written to stdout one
+  after the other.
+
+\item[-L\texttt{format}] Write a line number indication at the
+  beginning of each chunk. For example for the C programming language
+  one would specify the following.
+  \begin{myverbatim}
+  -L'#line %L "%F"%N'
+  \end{myverbatim}
+
+  The following placeholders can be used:
+  \begin{ttdescription}
+  \item[\%L]  Will be replaced by the repective line number.
+  \item[\%F]  Will be replaced by the current file name.
+  \item[\%N]  Will be replaced by a newline.
+  \item[\%\%] Will be replaced by a percent sign.
+  \end{ttdescription}
+
+  When an explicit \texttt{-L} option is given, indentation of
+  sub-chunks is switched off, \ie, column number of characters in
+  input and output agree. This is appropriate, since some compilers
+  also indicate the column number on compile time error and thus it is
+  easier to locate the error directly in the literate source.
+
+\item[-a] Output all chunk names defined in the input file.
+
+\item[-r] Output all chunk root names, \ie, definitions of chunks that
+  are nowhere used.
+
+\item[--version] Print the version number and don't process the file.
+\end{ttdescription}
+
+If \texttt{-a} is given on the command line, all other options are
+irrelevant. If \texttt{-r} is given, the options \texttt{-L} and
+\texttt{-R} are ignored.
+
 
 \section{Implementation}
 
@@ -82,6 +134,26 @@ function error(msg) {
   print msg
   exit 1
 }
+\end{chunk}
+
+\subsection{Command Line Options}
+
+\begin{chunk}{*}
+function getopt(  i, r) {
+  i = 1; r = 0
+  while (i < ARGC && ARGV[i] != "--") {
+    a = ARGV[i]
+    ARGV[i]=""
+    if      (a == "--version") {optversion = 1; exit 0}
+    else if (a == "-a") {optallchunknames = 1}
+    else if (a == "-r") {optallrootnames  = 1}
+    else if (a == "-R") {i++; roots[r] = ARGV[i]; ARGV[i]=""; r++}
+    else if (a == "-L") {i++; linedirectiveformat = ARGV[i]; ARGV[i]=""}
+    else {ARGV[i] = a; break}
+    i++
+  }
+}
+BEGIN {getopt()}
 \end{chunk}
 
 
@@ -782,11 +854,29 @@ function setchunkref( idx, val) {
 \end{chunk}
 
 \subsection{Phase 3}\label{sec:phase3}
-The following piece of code just triggers the expansion and output of
-all the chunks.
+The following piece of code is always executed. It trigges the output
+according to the given command line options.
+
 \begin{chunk}{*}
 END {
-  for (i in chunk) { print expandchunkrefs(i) }
+  if (optversion) {
+    print "ProLiteX 0.1"
+    print "Copyright (C) 2010,  Ralf Hemmecke <ralf@hemmecke.de>"
+  } else if (optallchunknames) { # print all chunk names
+    for (i in chunk) {print i}
+  } else if (optallrootnames) { # print root names
+    for (i in chunk) {expandchunkrefs(i)}
+    for (i in chunk) {if (chunk[i]==0) {print i}}
+  } else { # expand the chunks
+    r = length(roots)
+    # No -R has been given, so expand all root chunks.
+    for (i in chunk) {expandchunkrefs(i)}
+    if (r == 0) {for (i in chunk) {if (chunk[i]==0) {roots[r] = i; r++}}}
+    for (i=0; i<r; i++) {
+      if (roots[i] in chunk) {print expandchunkrefs(roots[i])}
+      else {error("There is no chunk with name '" roots[i] "'.")}
+    }
+  }
 }
 \end{chunk}
 
