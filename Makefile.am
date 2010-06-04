@@ -23,7 +23,7 @@
 bin_SCRIPTS = prolitex
 
 prolitex: prolitex.awk
-	cp $< $@
+	echo '@AWK@ -f $< -- "$$@"' > $@
 	chmod +x $@
 
 # prolitex.awk.tex is simple. The whole program is just linearly
