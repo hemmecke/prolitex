@@ -101,6 +101,11 @@ irrelevant. If \texttt{-r} is given, the options \texttt{-L} and
 \texttt{-R} are ignored.
 
 
+Since tabs are not translated into spaces, one has to be careful with
+proper indentation. If one line uses tabs and another one uses spaces,
+then indentation of included chunks might appear wrong.
+
+
 \section{Implementation}
 
 Since this file is a literate program (\ie, it contains documentation
@@ -454,32 +459,30 @@ function haschunkref(s, bdelim, edelim,   b, c, e) {
 }
 \end{chunk}
 
-The function \texttt{indentchunk} indents every line in the parameter
-\texttt{lines} by $n$ spaces. We simply replace each newline by a
-newline followed by $n$ spaces.
-\begin{chunk}{*}
-function indentchunk(n, lines,   indent) {
-  indent = sprintf("%" n "s", "")
-  gsub(/\n/, "\n" indent, lines)
-  return lines
-}
-\end{chunk}
-
 Including chunk in one line \texttt{aline} means to determine the
 index and name of the chunk reference and replace it by the
 corresponding (properly indented) code chunk. The chunk delimiters
 have to be given when the function is invoked.
 \begin{chunk}{*}
-function includechunks(aline, bdelim, edelim,   i, n, s) {
-  while (i = haschunkref(aline, bdelim, edelim)) {
-    if (chunkrefname in chunk) {
-      chunk[chunkrefname] = 1 # chunkrefname is used, i.e. no root chunk
-      s = s before indentchunk(n+i-1,data[chunkrefname,"lines"])
-      n += afterindex-1
-      aline = after
-    } else {
-      error("chunk name '" chunkrefname "' not existing")
+function includechunks(aline, bdelim, edelim,
+  # local variables
+  indent, moreindent, lines, s) {
+  indent = ""
+  while (haschunkref(aline, bdelim, edelim)) {
+    if (!(chunkrefname in chunk)) {
+      error("chunk name '" chunkrefname "' not defined")
     }
+    aline = after # what's next.
+    chunk[chunkrefname] = 1 # chunkrefname is used, i.e. no root chunk
+    # Compute indent amount for the chunk to include ...
+    moreindent = before; gsub(/[^\t]/, " ", moreindent)
+    indent = indent moreindent
+    # ... and indent accordingly.
+    lines = data[chunkrefname,"lines"]; gsub(/\n/, "\n" indent, lines)
+    s = s before lines
+    # There is more indentation for the next potential chunk.
+    moreindent = bdelim chunkrefname edelim; gsub(/[^\t]/, " ", moreindent)
+    indent = indent moreindent
   }
   return s aline
 }
