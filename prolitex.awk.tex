@@ -35,6 +35,7 @@
 \date{05-Jun-2010}
 \author{Ralf Hemmecke}
 \maketitle
+
 \begin{abstract}
   The \ProLiteX{} project consists of a collection of tools to
   supports literate programming. In contrast to most other tools
@@ -143,12 +144,14 @@ function error(msg) {
 
 \subsection{Command Line Options}
 
+Since our set of command line options is rather limited, we parse the
+options ourselves. Options parsing stops, if eigther a double dash or
+a non-known option is seen on the command line.
 \begin{chunk}{*}
 function getopt(  i, r) {
   i = 1; r = 0
   while (i < ARGC && ARGV[i] != "--") {
-    a = ARGV[i]
-    ARGV[i]=""
+    a = ARGV[i]; ARGV[i]=""
     if      (a == "--version") {optversion = 1; exit 0}
     else if (a == "-a") {optallchunknames = 1}
     else if (a == "-r") {optallrootnames  = 1}
@@ -161,6 +164,26 @@ function getopt(  i, r) {
 BEGIN {getopt()}
 \end{chunk}
 
+For the \texttt{-L} option we need a procedure that replaces the
+templates by the respective data. The parameters $L$ and $F$ are
+inserted into the format and produce the respective line directive.
+\begin{chunk}{*}
+function linedirective(L, F,  idx, indent, fmt, c, ld) {
+  fmt = linedirectiveformat
+  ld = ""
+  while ((idx = index(fmt, "%")) && (idx != length(fmt))) {
+    ld = ld substr(fmt, 1, idx-1)
+    c = substr(fmt,idx+1,1)
+    if      (c == "L") {ld = ld L}
+    else if (c == "F") {ld = ld F}
+    else if (c == "N") {ld = ld "\n"}
+    else if (c == "%") {ld = ld "%"}
+    else {ld = ld "%" c}
+    fmt = substr(fmt, idx+2)
+  }
+  return ld fmt
+}
+\end{chunk}
 
 
 \subsection{Overview}
@@ -298,6 +321,9 @@ for changes of the chunkref delimiters, we define for each
   chunk line. This will be used to generate \texttt{\#line}
   directives.
 
+\item[chunkname,part,"filename"] The source filename where the chunk
+  lives. This will be used to generate \texttt{\#line} directives.
+
 \item[chunkname,part,"lines"] The content of a part of a chunk. All
   lines are concatenated and stored in this entry. The trailing
   newline character of the last line is removed.
@@ -340,6 +366,7 @@ function enterchunk(chunkname, bdelim, edelim) {
   data[chunkname,part,"bdelim"] = bdelim
   data[chunkname,part,"edelim"] = edelim
   data[chunkname,part,"lineno"] = NR+1
+  data[chunkname,part,"filename"] = FILENAME
   lines = ""
   chunkref = 0 #no chunkref found so far
 }
@@ -464,7 +491,7 @@ index and name of the chunk reference and replace it by the
 corresponding (properly indented) code chunk. The chunk delimiters
 have to be given when the function is invoked.
 \begin{chunk}{*}
-function includechunks(aline, bdelim, edelim,
+function includechunks(aline, bdelim, edelim, ld,
   # local variables
   indent, moreindent, lines, s) {
   indent = ""
@@ -472,13 +499,21 @@ function includechunks(aline, bdelim, edelim,
     if (!(chunkrefname in chunk)) {
       error("chunk name '" chunkrefname "' not defined")
     }
-    aline = after # what's next.
+    aline = after # what's next
     chunk[chunkrefname] = 1 # chunkrefname is used, i.e. no root chunk
+    lines = data[chunkrefname,"lines"]
+    if (linedirectiveformat) {
+      s = s indent before "\n" lines "\n" ld
+      moreindent = before bdelim chunkrefname edelim
+      gsub(/[^\t]/, " ", moreindent)
+      indent = indent moreindent
+      continue
+    }
     # Compute indent amount for the chunk to include ...
     moreindent = before; gsub(/[^\t]/, " ", moreindent)
     indent = indent moreindent
     # ... and indent accordingly.
-    lines = data[chunkrefname,"lines"]; gsub(/\n/, "\n" indent, lines)
+    gsub(/\n/, "\n" indent, lines)
     s = s before lines
     # There is more indentation for the next potential chunk.
     moreindent = bdelim chunkrefname edelim; gsub(/[^\t]/, " ", moreindent)
@@ -513,11 +548,14 @@ chunks.
 \begin{chunk}{*}
 function expandchunkrefsN(chunkname,part,
   # local variables
-  chunkdata, bdelim, edelim, n, s, i, line) {
+  chunkdata, bdelim, edelim, n, s, i, line, lineno, filename, ld) {
   #
   chunkdata = data[chunkname, part, "lines"]
+  lineno    = data[chunkname, part, "lineno"]
+  filename  = data[chunkname, part, "filename"]
+  if (linedirectiveformat) {ld=linedirective(lineno,filename)} else {ld=""}
   # return early if the chunk does not reference other chunks
-  if (data[chunkname, part, "chunkref?"] == 0) { return chunkdata }
+  if (data[chunkname, part, "chunkref?"] == 0) {return ld chunkdata}
   # First round.
   bdelim = data[chunkname, part, "bdelim"]
   edelim = data[chunkname, part, "edelim"]
@@ -528,8 +566,10 @@ function expandchunkrefsN(chunkname,part,
   # Second round. Now every subchunk is properly expanded. We include them.
   n = split(data[chunkname,part,"lines"],line,"\n")
   if (n == 0) {return ""} # empty chunk
-  s = includechunks(line[1], bdelim, edelim)
-  for(i=2; i<=n; i++) {s = s "\n" includechunks(line[i], bdelim, edelim)}
+  s = ld includechunks(line[1], bdelim, edelim, ld)
+  for(i=2; i<=n; i++) {
+    if (linedirectiveformat) {ld = linedirective(lineno+i-1, filename)}
+    s = s "\n" includechunks(line[i], bdelim, edelim, ld)}
   return s
 }
 \end{chunk}
