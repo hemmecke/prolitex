@@ -530,8 +530,6 @@ any other function.
 \item[before] to the string part before matching \texttt{bdelim},
 \item[chunkrefname] to the name that has been found,
 \item[after] to the string part after the closing \texttt{edelim},
-\item[afterindex] to the index where the string \texttt{after} begins
-  in the originally given string.
 \end{ttdescription}
 
 
@@ -545,8 +543,8 @@ chunk reference has been found. It is the first index of the string
 returns 0.
 
 As a side effect, this function sets the global variables
-\texttt{before}, \texttt{chunkrefname}, \texttt{after},
-\texttt{afterindex}. See their description above.
+\texttt{before}, \texttt{chunkrefname}, \texttt{after}. See their
+description above.
 
 \begin{chunk}{*}
 function haschunkref(s, bdelim, edelim,   b, c, e) {
@@ -559,8 +557,7 @@ function haschunkref(s, bdelim, edelim,   b, c, e) {
     error("Closing chunkref delimiter not found.")
   }
   chunkrefname = substr(s, c, e-1)
-  afterindex = c+e+length(edelim)-1
-  after = substr(s, afterindex)
+  after = substr(s, c+e+length(edelim)-1)
   return b
 }
 \end{chunk}
