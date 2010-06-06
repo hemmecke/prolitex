@@ -253,6 +253,7 @@ templates by the respective data. The parameters $L$ and $F$ are
 inserted into the format and produce the respective line directive.
 \begin{chunk}{*}
 function linedirective(L, F,  idx, indent, fmt, c, ld) {
+  if (linedirectiveformat == "") {return ""}
   fmt = linedirectiveformat
   ld = ""
   while ((idx = index(fmt, "%")) && (idx != length(fmt))) {
@@ -581,7 +582,8 @@ function includechunks(aline, bdelim, edelim, ld,
     chunk[chunkrefname] = 1 # chunkrefname is used, i.e. no root chunk
     lines = data[chunkrefname,"lines"]
     if (linedirectiveformat) {
-      s = s indent before "\n" lines "\n" ld
+      s = s indent before "\n" lines
+      if (aline) {s = s "\n" ld}
       moreindent = before bdelim chunkrefname edelim
       gsub(/[^\t]/, " ", moreindent)
       indent = indent moreindent
@@ -631,7 +633,7 @@ function expandchunkrefsN(chunkname,part,
   chunkdata = data[chunkname, part, "lines"]
   lineno    = data[chunkname, part, "lineno"]
   filename  = data[chunkname, part, "filename"]
-  if (linedirectiveformat) {ld=linedirective(lineno,filename)} else {ld=""}
+  ld = linedirective(lineno,filename)
   # return early if the chunk does not reference other chunks
   if (data[chunkname, part, "chunkref?"] == 0) {return ld chunkdata}
   # First round.
@@ -645,9 +647,12 @@ function expandchunkrefsN(chunkname,part,
   n = split(data[chunkname,part,"lines"],line,"\n")
   if (n == 0) {return ""} # empty chunk
   s = ld includechunks(line[1], bdelim, edelim, ld)
-  for(i=2; i<=n; i++) {
-    if (linedirectiveformat) {ld = linedirective(lineno+i-1, filename)}
-    s = s "\n" includechunks(line[i], bdelim, edelim, ld)}
+  for(i=1; i<n; i++) {
+    s = s "\n"
+    ld = linedirective(lineno+i, filename)
+    if (haschunkref(line[i], bdelim, edelim)) {s = s ld}
+    s = s includechunks(line[i+1], bdelim, edelim, ld)
+  }
   return s
 }
 \end{chunk}
