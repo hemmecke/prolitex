@@ -566,6 +566,10 @@ Including chunk in one line \texttt{aline} means to determine the
 index and name of the chunk reference and replace it by the
 corresponding (properly indented) code chunk. The chunk delimiters
 have to be given when the function is invoked.
+
+Furthermore, if a \texttt{-L} option has been given on the command
+line, indentation is switched of and line directives are issued at
+appropriate places.
 \begin{chunk}{*}
 function includechunks(aline, bdelim, edelim, ld,
   # local variables
