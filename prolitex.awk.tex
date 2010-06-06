@@ -212,12 +212,12 @@ appropriate first line. Note that we assume that the executable
 \texttt{awk} lives under \texttt{/usr/bin}. That might not everywhere
 be the case. Maybe our \texttt{configure} script should deal with
 this issue.
-\begin{chunk}{*}
+\begin{chunk}{prolitex.awk}
 #!/usr/bin/awk -f
 \end{chunk}
 
 Let's have an error function that aborts the program.
-\begin{chunk}{*}
+\begin{chunk}{prolitex.awk}
 function error(msg) {
   print "==========================================="
   print "Error in line " NR " of " FILENAME "."
@@ -231,7 +231,7 @@ function error(msg) {
 Since our set of command line options is rather limited, we parse the
 options ourselves. Options parsing stops, if eigther a double dash or
 a non-known option is seen on the command line.
-\begin{chunk}{*}
+\begin{chunk}{prolitex.awk}
 function getopt(  i, r) {
   i = 1; r = 0
   while (i < ARGC && ARGV[i] != "--") {
@@ -251,7 +251,7 @@ BEGIN {getopt()}
 For the \texttt{-L} option we need a procedure that replaces the
 templates by the respective data. The parameters $L$ and $F$ are
 inserted into the format and produce the respective line directive.
-\begin{chunk}{*}
+\begin{chunk}{prolitex.awk}
 function linedirective(L, F,  idx, indent, fmt, c, ld) {
   if (linedirectiveformat == "") {return ""}
   fmt = linedirectiveformat
@@ -314,7 +314,7 @@ We list here the all the global variables.
 \begin{ttdescription}
 \item[bdelimglobal \textrm{and} edelimglobal] These variables are used
   to store the global settings for the chunkref delimiters.
-\begin{chunk}{*}
+\begin{chunk}{prolitex.awk}
 BEGIN {
   bdelimglobal = "<<"
   edelimglobal = ">>"
@@ -327,7 +327,7 @@ By a command of the form
 \end{myverbatim}
 the global chunkref delimiters can be changed for the following chunk
 enviroments to \texttt{<[} and \texttt{]>}.
-\begin{chunk}{*}
+\begin{chunk}{prolitex.awk}
 /^\\lstset{/ {
   lineidx = 8 # start parsing after "\lstset{"
   if (parseoptions() != "}") {error("Expected closing brace")}#$
@@ -426,7 +426,7 @@ delimiters, which are \texttt{<<} and \texttt{>>}.
 Let's first treat the simple case to start a chunk, \ie, the chunk has
 no optional parameter. We don't allow any character appearing after
 the closing brace that ends the chunkname.
-\begin{chunk}{*}
+\begin{chunk}{prolitex.awk}
 /^\\begin{chunk}{.+}$/ {#$
   chunkname = substr($0,15,length($0)-15)
   enterchunk(chunkname, bdelimglobal, edelimglobal)
@@ -437,7 +437,7 @@ the closing brace that ends the chunkname.
 Entering a chunk simply initializes certain variables. We have put
 this code into a separate function because it can be reused for
 entering a chunk that has an optional parameter.
-\begin{chunk}{*}
+\begin{chunk}{prolitex.awk}
 function enterchunk(chunkname, bdelim, edelim) {
   inchunk = 1
   part = ++data[chunkname,"parts"]
@@ -465,7 +465,7 @@ The function \texttt{setchunkref} then takes the \texttt{options}
 array and determines the values of the begin and ending delimiter.
 
 Both \texttt{parseoptions} and \texttt{setchunkref} are described in Section~\ref{sec:parsing}
-\begin{chunk}{*}
+\begin{chunk}{prolitex.awk}
 /^\\begin{chunk}\[/ {
   lineidx = 14 # start parsing after "\begin{chunk}["
   if (parseoptions() != "]") {error("Expected closing bracket")}
@@ -481,7 +481,7 @@ Both \texttt{parseoptions} and \texttt{setchunkref} are described in Section~\re
 
 Eventually, we switch off the chunk treatment. It only makes sense if
 we are inside a chunk. Otherwise we abort.
-\begin{chunk}{*}
+\begin{chunk}{prolitex.awk}
 /^\\end{chunk}/ {
   if (inchunk == 0) {
     error("Have found \\end{chunk} without \\begin{chunk}.")
@@ -499,7 +499,7 @@ chunk and read the chunk lines. Note that this chunk must come after
 the part that treats the end of a code chunk. If it came before that
 chunk then \verb'\'\verb'end{chunk}' would be considered as part of
 the chunk.
-\begin{chunk}{*}
+\begin{chunk}{prolitex.awk}
 inchunk {
   chunkref += index($0, data[chunkname,part,"bdelim"]) #$
   lines = lines "\n" $0 #$
@@ -546,7 +546,7 @@ As a side effect, this function sets the global variables
 \texttt{before}, \texttt{chunkrefname}, \texttt{after}. See their
 description above.
 
-\begin{chunk}{*}
+\begin{chunk}{prolitex.awk}
 function haschunkref(s, bdelim, edelim,   b, c, e) {
   b = index(s, bdelim)
   if (b == 0) { return 0 }
@@ -570,7 +570,7 @@ have to be given when the function is invoked.
 Furthermore, if a \texttt{-L} option has been given on the command
 line, indentation is switched of and line directives are issued at
 appropriate places.
-\begin{chunk}{*}
+\begin{chunk}{prolitex.awk}
 function includechunks(aline, bdelim, edelim, ld,
   # local variables
   indent, moreindent, lines, s) {
@@ -626,7 +626,7 @@ compute the resulting lines, but rather only recursively expand the
 chunks that are referenced from the current chunk. In the second round
 we can simply include the (already) expanded lines from the referenced
 chunks.
-\begin{chunk}{*}
+\begin{chunk}{prolitex.awk}
 function expandchunkrefsN(chunkname,part,
   # local variables
   chunkdata, bdelim, edelim, n, s, i, line, lineno, filename, ld) {
@@ -660,7 +660,7 @@ function expandchunkrefsN(chunkname,part,
 
 And now we expand the various chunk parts and store these lines
 concatenated into \texttt{data[chunkname,"lines"]}.
-\begin{chunk}{*}
+\begin{chunk}{prolitex.awk}
 function expandchunkrefs(chunkname,   parts, s, k) {
   # return early if the chunk has already been expanded
   if ((chunkname,"lines") in chunk) { return data[chunkname,"lines"] }
@@ -678,7 +678,7 @@ function expandchunkrefs(chunkname,   parts, s, k) {
 The following piece of code is always executed. It trigges the output
 according to the given command line options.
 
-\begin{chunk}{*}
+\begin{chunk}{prolitex.awk}
 END {
   if (optversion) {
     print "ProLiteX 0.1"
@@ -796,7 +796,7 @@ Since \packagename{awk} does not have constants, we give here two
 variables that are actually used as constants. According to the
 grammar letters can be used as part of a control sequence. Non-word
 characters are used to recognize the end of a word.
-\begin{chunk}{*}
+\begin{chunk}{prolitex.awk}
 BEGIN {
   letter      = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
   nonwordchar = " %,={}[]\\"
@@ -842,7 +842,7 @@ the next character from the input stream and stores it in the global
 variable \texttt{ch}. That function will already transform tabulators and
 newlines into a space.
 
-\begin{chunk}{*}
+\begin{chunk}{prolitex.awk}
 function nextCharacter() {
   lineidx += 1
   if (lineidx <= length($0)) {
@@ -866,7 +866,7 @@ the word or control sequence token.
 Since we have a simple grammar, except for the tokens \verb|"w"|
 (word) and \verb|"c"| (control sequence), each of the bold face
 tokens in the grammar is represented by its respective character.
-\begin{chunk}{*}
+\begin{chunk}{prolitex.awk}
 function getsym() {
   symvalue = ""
   # The following while loop skips white space and LaTeX comments
@@ -911,7 +911,7 @@ assumes that the variable \texttt{lineidx} gives the index into the
 current line after which parsing should start. The function returns
 the token (which in our case should only be \verb|"]"| or \verb|"}"|)
 of the text following the optional key/value pairs.
-\begin{chunk}{*}
+\begin{chunk}{prolitex.awk}
 function parseoptions() {
   nextCharacter() # ch = look-ahead character
   getsym() # sym = look-ahead token
@@ -923,7 +923,7 @@ function parseoptions() {
 The following functions (all starting with the letter g for grammar)
 form a direct translation of the grammar as given on
 page~\pageref{grammar} into parsing functions.
-\begin{chunk}{*}
+\begin{chunk}{prolitex.awk}
 function goptions() {
   gkeyval()
   while (sym == ",") {getsym(); gkeyval()}
@@ -934,7 +934,7 @@ Except for recognizing the grammar, the functions keep track of the
 value of a key/value pair. This value is accumulated into the variable
 \texttt{kvalue} and eventually stored into the \texttt{options} array
 at the position given by the name of the key.
-\begin{chunk}{*}
+\begin{chunk}{prolitex.awk}
 function gkeyval( keyname) {
   if (sym == "w") {
     keyname = symvalue
@@ -945,10 +945,10 @@ function gkeyval( keyname) {
   }
 }
 \end{chunk}
-\begin{chunk}{*}
+\begin{chunk}{prolitex.awk}
 function gvalue() {while (index("wc{[", sym)) {gbalanced()}}
 \end{chunk}
-\begin{chunk}{*}
+\begin{chunk}{prolitex.awk}
 function gbalanced() {
   if (sym == "[") {
     kvalue = kvalue sym; getsym(); gbalancedx()
@@ -957,7 +957,7 @@ function gbalanced() {
   } else gbalancedx()
 }
 \end{chunk}
-\begin{chunk}{*}
+\begin{chunk}{prolitex.awk}
 function gbalancedx() {
   while (index("wc{", sym)) {
     if      (sym == "w") {kvalue = kvalue symvalue; getsym()}
@@ -970,7 +970,7 @@ function gbalancedx() {
   }
 }
 \end{chunk}
-\begin{chunk}{*}
+\begin{chunk}{prolitex.awk}
 function gbalancedz() {
   while (index(",=[]wc{", sym)) {
     if (index(",=[]", sym)) {kvalue = kvalue sym; getsym()}
@@ -992,7 +992,7 @@ and \texttt{edelimglobal} and 0 is returned.
 
 We assume that \verb'options["chunkref"]' has a format like
 \verb"{bdelim}{edelim}", so we split and remove the braces.
-\begin{chunk}{*}
+\begin{chunk}{prolitex.awk}
 function setchunkref( idx, val) {
   if ("chunkref" in options) {
     val = options["chunkref"]
