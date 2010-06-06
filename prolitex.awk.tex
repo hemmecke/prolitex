@@ -31,8 +31,16 @@
   {\endlist}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \begin{document}
+% Because we use << inside a chunk (for example to specify
+% bdelimglobal), we must redefine the default chunkref delimiter.
+% Since this file does actually use chunkref delimiters, it does not
+% matter to what delimiters we redefine the default. It just should
+% not appear inside any of the following chunk or myverbatim
+% environments.
+\lstset{chunkref={@<@}{@>@}}
+
 \title{\ProLiteX}
-\date{05-Jun-2010}
+\date{06-Jun-2010}
 \author{Ralf Hemmecke}
 \maketitle
 
@@ -47,40 +55,93 @@
   As the tangle part, \ie, extracting the source code from the
   literate sources, \ProLiteX{} provides an \packagename{awk} script.
 \end{abstract}
+\tableofcontents
 
-\section{Introduction}
-In the following we describe the \ProLiteX{} implementation of a
-\texttt{tangle} program. This \packagename{awk} programm is called via
+\section{User's Guide}
+
+A literate document which is suitable for \ProLiteX{} is an ordinary
+\LaTeX{} document that has a number of \texttt{chunk} environments in
+it. A simple document (let's call it \texttt{file.tex}) might look
+like this.
 \begin{myverbatim}
-  awk -f prolitex.awk file.tex
+  \documentclass[a4paper]{article}
+  \usepackage{prolitex}
+  \begin{document}
+  \begin{chunk}{CHUNKNAME A}
+  for a in 1..9 repeat {
+    <<CHUNKNAME B>>
+  }
+  \end{chunk}
+  \begin{chunk}{CHUNKNAME C}
+  code from chunk C
+  \end{chunk}
+  \begin{chunk}{CHUNKNAME B}
+  some code from chunk B
+      <<CHUNKNAME C>>
+  more code from chunk B
+  \end{chunk}
+  \end{document}
 \end{myverbatim}
-where \texttt{file.tex} is the file containing chunk definitions.
-In fact, if \packagename{awk} exists as \texttt{/usr/bin/awk} on the
-system, then \texttt{prolitex.awk} can be made executable and used as a
-script in the form
+After running the 
+\texttt{tangle} program via
 \begin{myverbatim}
-  prolitex.awk file.tex
+  ./prolitex file.tex
 \end{myverbatim}
-The script accepts several command line options.
+on the above file one should get the following output.
+\begin{myverbatim}
+  for a in 1..9 repeat {
+    some code from chunk B
+        code from chunk C
+    more code from chunk B
+  }
+\end{myverbatim}
+Note in particular the indentation of the code.
+
+The script \texttt{prolitex} is nothing else than a one-line shell
+script with the following contents.
+\begin{myverbatim}
+  awk -f prolitex.awk -- "$@"
+\end{myverbatim}
+That script is usually generated when the \ProLiteX{} package is
+compiled.
+
+In the following we describe the \ProLiteX{} version of a
+\texttt{tangle} program written in \packagename{awk}.
+%
+The \prolitex{} script accepts several command line options that will
+be described below. Usually, the script will be called by giving a
+\texttt{-R} command line option. However, if no option is given, the
+script figures out all the top-level chunks, \ie, the chunks that are
+not included by any other chunk, and expands and outputs all of them
+(in no particular order).
+
+In contrast to \packagename{noweb} \ProLiteX{} has no default root
+chunk name. If a file contains exactly one top-level chunk (of any
+name) then calling \prolitex{} without \texttt{-R} might be the
+preferred way to call \prolitex{}.
+
 \begin{ttdescription}
-\item[-R\texttt{name}] Expand and output the chunk \texttt{name} to
+\item[-R \texttt{name}] Expand and output the chunk \texttt{name} to
   stdout. Several \texttt{-R} options can be given with the meaning
   that the corresponding expanded chunks are written to stdout one
   after the other.
 
-\item[-L\texttt{format}] Write a line number indication at the
+  If no \texttt{-R} option is given, then all root chunks are expanded
+  and output in no particular order.
+
+\item[-L \texttt{format}] Write a line number indication at the
   beginning of each chunk. For example for the C programming language
   one would specify the following.
   \begin{myverbatim}
-  -L'#line %L "%F"%N'
+  -L '#line %L "%F"%N'
   \end{myverbatim}
 
   The following placeholders can be used:
   \begin{ttdescription}
-  \item[\%L]  Will be replaced by the repective line number.
-  \item[\%F]  Will be replaced by the current file name.
-  \item[\%N]  Will be replaced by a newline.
-  \item[\%\%] Will be replaced by a percent sign.
+  \item[\%L]  Expands to the repective line number.
+  \item[\%F]  Expands to the current file name.
+  \item[\%N]  Expands to a newline.
+  \item[\%\%] Expands to a percent sign.
   \end{ttdescription}
 
   When an explicit \texttt{-L} option is given, indentation of
@@ -89,22 +150,45 @@ The script accepts several command line options.
   also indicate the column number on compile time error and thus it is
   easier to locate the error directly in the literate source.
 
+  If \prolitex{} is called via
+  \begin{myverbatim}
+  ./prolitex -L '#line %L "%F"%N' file.tex
+  \end{myverbatim}
+  the output will look as follows.
+  \begin{myverbatim}
+  #line 5 "file.tex"
+  for a in 1..9 repeat {
+    
+  #line 13 "file.tex"
+  some code from chunk B
+      
+  #line 10 "file.tex"
+  code from chunk C
+  #line 14 "file.tex"
+  
+  more code from chunk B
+  #line 6 "file.tex"
+  
+  }
+  \end{myverbatim}
+
 \item[-a] Output all chunk names defined in the input file.
 
 \item[-r] Output all chunk root names, \ie, definitions of chunks that
   are nowhere used.
 
-\item[--version] Print the version number and don't process the file.
+\item[--version] Print the version number and do not process the file.
 \end{ttdescription}
 
-If \texttt{-a} is given on the command line, all other options are
-irrelevant. If \texttt{-r} is given, the options \texttt{-L} and
-\texttt{-R} are ignored.
-
+If \texttt{--version} is given on the command line, all other options
+are irrelevant. The option \texttt{-a} takes precedence over all
+remaining options. If \texttt{-r} is given, the options \texttt{-L}
+and \texttt{-R} are ignored.
 
 Since tabs are not translated into spaces, one has to be careful with
 proper indentation. If one line uses tabs and another one uses spaces,
 then indentation of included chunks might appear wrong.
+
 
 
 \section{Implementation}
@@ -186,7 +270,7 @@ function linedirective(L, F,  idx, indent, fmt, c, ld) {
 \end{chunk}
 
 
-\subsection{Overview}
+\subsection{The Tangle Process}
 
 The implementation is done for two cases (a) where the chunkref
 delimiters do not change and (b) where they can change due to a
@@ -229,12 +313,6 @@ We list here the all the global variables.
 \begin{ttdescription}
 \item[bdelimglobal \textrm{and} edelimglobal] These variables are used
   to store the global settings for the chunkref delimiters.
-  % Because in the following chunk we write <<, we must redefine
-  % the default chunkref delimiter. Since this file does actually use
-  % chunkref delimiters, it does not matter to what delimiters we
-  % redefine the default. It just should not appear inside any of the
-  % following chunk environments.
-  \lstset{chunkref={@<@}{@>@}}
 \begin{chunk}{*}
 BEGIN {
   bdelimglobal = "<<"
@@ -588,6 +666,37 @@ function expandchunkrefs(chunkname,   parts, s, k) {
 }
 \end{chunk}
 
+
+
+\subsection{Phase 3}\label{sec:phase3}
+The following piece of code is always executed. It trigges the output
+according to the given command line options.
+
+\begin{chunk}{*}
+END {
+  if (optversion) {
+    print "ProLiteX 0.1"
+    print "Copyright (C) 2010,  Ralf Hemmecke <ralf@hemmecke.de>"
+  } else if (optallchunknames) { # print all chunk names
+    for (i in chunk) {print i}
+  } else if (optallrootnames) { # print root names
+    for (i in chunk) {expandchunkrefs(i)}
+    for (i in chunk) {if (chunk[i]==0) {print i}}
+  } else { # expand the chunks
+    r = length(roots)
+    # No -R has been given, so expand all root chunks.
+    for (i in chunk) {expandchunkrefs(i)}
+    if (r == 0) {for (i in chunk) {if (chunk[i]==0) {roots[r] = i; r++}}}
+    for (i=0; i<r; i++) {
+      if (roots[i] in chunk) {print expandchunkrefs(roots[i])}
+      else {error("There is no chunk with name '" roots[i] "'.")}
+    }
+  }
+}
+\end{chunk}
+
+
+
 \subsection{The Options Parsing}\label{sec:parsing}
 In general the \packagename{listings} package allows to control the
 \texttt{lstlisting} environment. This is inherited by \ProLiteX{},
@@ -895,35 +1004,6 @@ function setchunkref( idx, val) {
   }
 }
 \end{chunk}
-
-\subsection{Phase 3}\label{sec:phase3}
-The following piece of code is always executed. It trigges the output
-according to the given command line options.
-
-\begin{chunk}{*}
-END {
-  if (optversion) {
-    print "ProLiteX 0.1"
-    print "Copyright (C) 2010,  Ralf Hemmecke <ralf@hemmecke.de>"
-  } else if (optallchunknames) { # print all chunk names
-    for (i in chunk) {print i}
-  } else if (optallrootnames) { # print root names
-    for (i in chunk) {expandchunkrefs(i)}
-    for (i in chunk) {if (chunk[i]==0) {print i}}
-  } else { # expand the chunks
-    r = length(roots)
-    # No -R has been given, so expand all root chunks.
-    for (i in chunk) {expandchunkrefs(i)}
-    if (r == 0) {for (i in chunk) {if (chunk[i]==0) {roots[r] = i; r++}}}
-    for (i=0; i<r; i++) {
-      if (roots[i] in chunk) {print expandchunkrefs(roots[i])}
-      else {error("There is no chunk with name '" roots[i] "'.")}
-    }
-  }
-}
-\end{chunk}
-
-
 
 
 
