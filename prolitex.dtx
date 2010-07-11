@@ -44,7 +44,7 @@
 %
 %^^A The title page
 % \title{The \ProLiteX{} package}
-% \date{2010/05/07}
+% \date{2010/07/11}
 % \author{Ralf Hemmecke}
 % \maketitle
 % \begin{abstract}
@@ -253,8 +253,8 @@
 % that we build on \LaTeX{}.
 %    \begin{macrocode}
 \NeedsTeXFormat{LaTeX2e}
-\def\filedate{2010/05/07}
-\def\fileversion{0.1}
+\def\filedate{2010/07/11}
+\def\fileversion{0.2}
 \AtEndOfPackage{\ProvidesPackage{prolitex}
   [\filedate\space\fileversion\space(Ralf Hemmecke)]}
 %    \end{macrocode}
@@ -289,7 +289,7 @@
   \def\prolitex@value{#2}\@onelevel@sanitize\prolitex@value
   \xdef\lst@intname{\prolitex@value}%
   \lstset{numbers=left,firstnumber=auto,breaklines=false,
-    basicstyle=\ttfamily,caption={#2},#1}%
+    basicstyle=\ttfamily\scriptsize,caption={#2},#1}%
   \csname\@lst @SetFirstNumber\endcsname
 }{\csname\@lst @SaveFirstNumber\endcsname}
 %    \end{macrocode}
@@ -314,6 +314,10 @@
 %    \begin{macrocode}
 \lstset{chunkref={<<}{>>}}
 %    \end{macrocode}
+% There are reports that the above default does not work in connection
+% with |\usepackge[spanish]{babel}|. If you encounter such problems,
+% try to put |\lstset{chunkref={<<}{>>}}| right after
+% |\begin{document}| or select other delimiters.
 % \begin{macro}{\prolitex@EscapeRef}
 % This command is a replacement for |\lst@Escape| from the
 % \packagename{listings} package. However, we only have two instead
