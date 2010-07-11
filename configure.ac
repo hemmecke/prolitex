@@ -1,11 +1,11 @@
 AC_PREREQ(2.61)
 AC_INIT(
   [ProLiteX],
-  [0.1],
+  [0.2],
   [ralf@hemmecke.de])
 
 # Sanity check
-AC_CONFIG_SRCDIR([build-setup.sh])
+AC_CONFIG_SRCDIR([prolitex.dtx])
 
 # Certain configuration files are kept in the config subdirectory.
 AC_CONFIG_AUX_DIR(config)
@@ -14,9 +14,11 @@ AC_CONFIG_MACRO_DIR(config)
 # Init Automake (non-gnu standard)
 AM_INIT_AUTOMAKE([-Wall -Werror foreign])
 
-
-# We need notangle to get things going. That must be in the PATH.
+# We need latex and friends to get things going. That must be in the PATH.
 AC_CHECK_PROGS([LATEX], [latex])
+AC_CHECK_PROGS([PDFLATEX], [pdflatex])
+AC_CHECK_PROGS([BIBTEX], [bibtex])
+AC_CHECK_PROGS([DVIPS], [dvips])
 
 # Check for a latex package by trying to compile a short document.
 AC_DEFUN([CHECK_LATEX_PACKAGE],

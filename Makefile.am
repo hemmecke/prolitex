@@ -17,10 +17,24 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ###################################################################
-# This is the main Makefile of the unprose literate programming
+# This is the main Makefile of the prolitex literate programming
 # project.
 ###################################################################
 bin_SCRIPTS = prolitex
+
+###################################################################
+# prolitex.sty should live somewhere in the the path given by
+# TEXINPUTS. This directory can be configured via
+# ./configure --datadir=...
+# datadir is usually set to ${prefix}/share so
+# pkgdatadir will be ${datadir}/prolitex
+###################################################################
+dist_pkgdata_DATA = prolitex.sty prolitex.awk
+
+###################################################################
+# We put the original sources into the distribution.
+###################################################################
+EXTRA_DIST = prolitex.ins prolitex.dtx prolitex.awk.tex prolitex.bib
 
 prolitex: prolitex.awk
 	echo '@AWK@ -f $< -- "$$@"' > $@
@@ -31,3 +45,38 @@ prolitex: prolitex.awk
 # contents of these environments. (That's the simplest tangle.)
 prolitex.awk: prolitex.awk.tex
 	awk '/^\\begin{chunk}/{c=1;next};/^\\end{chunk}/{c=0;next};c' $< > $@
+
+prolitex.sty: prolitex.ins prolitex.dtx
+	$(LATEX) $<
+
+
+###################################################################
+# Documentation
+###################################################################
+dvi-local: prolitex.dvi prolitex.awk.dvi
+ps-local:  prolitex.ps  prolitex.awk.ps
+pdf-local: prolitex.pdf prolitex.awk.pdf
+
+%.dvi: %.dtx
+	$(LATEX) $<
+
+%.ps: %.dvi
+	$(DVIPS) $<
+
+%.pdf: %.dtx
+	$(PDFLATEX) $<
+
+%.dvi: %.tex prolitex.sty
+	$(LATEX) $<
+	$(BIBTEX) $(<:%.tex=%.aux)
+	$(LATEX) $<
+	$(LATEX) $<
+
+%.pdf: %.tex prolitex.sty
+	$(PDFLATEX) $<
+	$(BIBTEX) $(<:%.tex=%.aux)
+	$(PDFLATEX) $<
+	$(PDFLATEX) $<
+
+EXTS=4ct 4tc aux bbl blg css dvi html idv lg log out pdf ps sty tmp toc xref
+CLEANFILES=prolitex prolitex.awk $(EXTS:%=prolitex.%) $(EXTS:%=prolitex.awk.%)
