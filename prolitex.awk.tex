@@ -15,9 +15,35 @@
 \newcommand\ProLiteX{\textsf{ProLiteX}}
 \newcommand\prolitex{\packagename{prolitex}}
 \newcommand{\ie}{i.\,e.}
-\lstnewenvironment{myverbatim}%
-  {\lstset{basicstyle=\scriptsize\ttfamily,gobble=2,language={}}}%
-  {}
+
+\makeatletter
+\def\MakeFramed{\begingroup}
+\def\endMakeFramed{\endgroup}%
+\IfFileExists{framed.sty}%
+  {\usepackage{framed}[2003/07/21 v 0.8a]}%
+  {\PackageWarning{allprose}{framed.sty not found}}
+\newenvironment{ColoredBackground}[1]%
+  {\@ifundefined{background#1}%
+     {\def\FrameCommand{}}%
+     {\def\FrameCommand{\csname background#1\endcsname}}%
+   \trivlist\item\MakeFramed{}}%
+  {\endMakeFramed\endtrivlist}
+\def\backgroundColor#1#2#{\background@Color{#1}{#2}}
+\def\background@Color#1#2#3{%
+  \expandafter\gdef\csname background#1\endcsname{\@backgroundColor{#1}#2{#3}}}
+\def\@backgroundColor#1{\colorbox}%
+\backgroundColor{verbatim}[rgb]{0.9,0.9,0.9}
+
+\usepackage{verbatim}
+\newenvironment{myverbatim}%
+{\ColoredBackground{verbatim}\footnotesize\verbatim}%
+{\endverbatim\endColoredBackground}
+\makeatother
+
+%\lstnewenvironment{myverbatim}%
+%  {\lstset{basicstyle=\scriptsize\ttfamily,gobble=2,language={}}}%
+%  {}
+
 % We must use basicstyle=\scriptsize in order to get about 80
 % charactes per line in the code chunk.
 \lstset{basicstyle=\scriptsize}
@@ -132,9 +158,9 @@ preferred way to call \prolitex{}.
 \item[-L \texttt{format}] Write a line number indication at the
   beginning of each chunk. For example for the C programming language
   one would specify the following.
-  \begin{myverbatim}
+\begin{myverbatim}
   -L '#line %L "%F"%N'
-  \end{myverbatim}
+\end{myverbatim}
 
   The following placeholders can be used:
   \begin{ttdescription}
@@ -151,11 +177,11 @@ preferred way to call \prolitex{}.
   easier to locate the error directly in the literate source.
 
   If \prolitex{} is called via
-  \begin{myverbatim}
+\begin{myverbatim}
   ./prolitex -L '#line %L "%F"%N' file.tex
-  \end{myverbatim}
+\end{myverbatim}
   the output will look as follows.
-  \begin{myverbatim}
+\begin{myverbatim}
   #line 5 "file.tex"
   for a in 1..9 repeat {
     
@@ -170,7 +196,7 @@ preferred way to call \prolitex{}.
   #line 6 "file.tex"
   
   }
-  \end{myverbatim}
+\end{myverbatim}
 
 \item[-a] Output all chunk names defined in the input file.
 
