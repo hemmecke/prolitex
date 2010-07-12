@@ -17,7 +17,8 @@
 \usedir{tex/latex/prolitex}
 \keepsilent
 \askforoverwritefalse
-\generate{\file{prolitex.sty}{\from{prolitex.dtx}{}}}
+\def\GEN#1#2{\generate{\file{#2.sty}{\from{#1#2.dtx}{}}}}
+\@ifundefined{PATH}{\GEN{}}{\expandafter\GEN\expandafter{\PATH}}{prolitex}
 \Msg{*}
 \Msg{* You probably need to move `prolite.sty'}
 \Msg{* into a directory searched by TeX.}

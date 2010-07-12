@@ -47,7 +47,7 @@ prolitex.awk: prolitex.awk.tex
 	awk '/^\\begin{chunk}/{c=1;next};/^\\end{chunk}/{c=0;next};c' $< > $@
 
 prolitex.sty: prolitex.ins prolitex.dtx
-	$(LATEX) $<
+	echo '\def\PATH{${abs_srcdir}/}' | cat - $< | $(LATEX)
 
 
 ###################################################################
@@ -79,4 +79,5 @@ pdf-local: prolitex.pdf prolitex.awk.pdf
 	$(PDFLATEX) $<
 
 EXTS=4ct 4tc aux bbl blg css dvi html idv lg log out pdf ps sty tmp toc xref
-CLEANFILES=prolitex prolitex.awk $(EXTS:%=prolitex.%) $(EXTS:%=prolitex.awk.%)
+CLEANFILES=$(EXTS:%=prolitex.%) $(EXTS:%=prolitex.awk.%) \
+  prolitex prolitex.awk texput.log article.log article.aux
