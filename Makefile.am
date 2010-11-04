@@ -37,14 +37,14 @@ dist_pkgdata_DATA = prolitex.sty prolitex.awk
 EXTRA_DIST = prolitex.ins prolitex.dtx prolitex.awk.tex prolitex.bib
 
 prolitex: prolitex.awk
-	echo '@AWK@ -f $< -- "$$@"' > $@
+	echo '${AWK} -f ${pkgdatadir}/$< -- "$$@"' > $@
 	chmod +x $@
 
 # prolitex.awk.tex is simple. The whole program is just linearly
 # distributed over the chunk environment, so we just extract the
 # contents of these environments. (That's the simplest tangle.)
 prolitex.awk: prolitex.awk.tex
-	awk '/^\\begin{chunk}/{c=1;next};/^\\end{chunk}/{c=0;next};c' $< > $@
+	${AWK} '/^\\begin{chunk}/{c=1;next};/^\\end{chunk}/{c=0;next};c' $< > $@
 
 prolitex.sty: prolitex.ins prolitex.dtx
 	echo '\def\PATH{${abs_srcdir}/}' | cat - $< | $(LATEX)
